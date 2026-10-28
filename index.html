@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#11191c">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A tiny, disapproving Dexter who inhabits a private, offline desk.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <title>Dexter Desk Familiar</title>
+  <link rel="icon" href="./icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <main class="scene" id="scene" aria-label="Dexter's desk habitat">
+      <div class="ambient-light" aria-hidden="true"></div>
+      <div class="room-grid" aria-hidden="true"></div>
+      <div class="masthead">
+        <div class="identity"><span class="mark" aria-hidden="true">D<span class="mark-point">.</span></span><div><strong>DEXTER</strong><small>DESK FAMILIAR <span class="issue">/ 001</span></small></div></div>
+        <div class="meta"><span class="private-dot" aria-hidden="true"></span><span>LOCAL PRESENCE</span><span class="meta-separator">/</span><span id="clock">--:--</span></div>
+      </div>
+      <div class="thought-wrap" aria-live="polite" aria-atomic="true"><div class="thought" id="thought">Your attendance has been recorded. Unfortunately.</div></div>
+      <div class="orbit orbit-one" aria-hidden="true"></div>
+      <div class="orbit orbit-two" aria-hidden="true"></div>
+      <div class="sprite-wrap" id="pet" role="button" tabindex="0" aria-label="Interact with Dexter. Drag to reposition, or press Enter to get a reaction." data-state="idle">
+        <span class="sprite-shadow" aria-hidden="true"></span>
+        <img id="sprite" class="sprite" src="./assets/dexter-sit-96.png" alt="Pixel portrait of Dexter: floppy black ears, tan eyebrows, cream ruff, narrow eyes, scowl, and curled tail" draggable="false" width="96" height="96">
+        <span class="puff" aria-hidden="true">hff.</span>
+        <span class="sleeping-marks" aria-hidden="true">z<span>z</span><span>z</span></span>
+        <span class="treat-stars" aria-hidden="true">✦</span>
+      </div>
+      <div class="floor" aria-hidden="true"></div>
+      <div class="habitat-bottom"><span id="sceneCaption">PRESENT · UNIMPRESSED</span><span>NO ACCOUNT · NO TELEMETRY</span></div>
+      <section class="desk-panel" id="deskPanel" hidden aria-labelledby="deskTitle">
+        <div class="panel-head"><div><small>LOCAL INPUT LAB</small><h2 id="deskTitle">Type. Be judged.</h2></div><button class="square-button" type="button" id="closeDesk" aria-label="Close typing lab">×</button></div>
+        <p>Dexter reacts to keypress timing <strong>here only</strong>. Text is never saved or transmitted. Close the panel to erase it.</p>
+        <label for="typingInput" class="field-label">Unrecorded practice space</label>
+        <textarea id="typingInput" rows="4" spellcheck="false" autocomplete="off" placeholder="Compose something improbable..."></textarea>
+        <div class="panel-foot"><span id="typingRate">0 keys / 6 seconds</span><button type="button" id="clearDesk">Erase text</button></div>
+      </section>
+    </main>
+    <footer class="dock" aria-label="Dexter controls">
+      <div class="status-block"><small>FAMILIAR STATE</small><strong id="stateLabel">OBSERVING</strong></div>
+      <div class="button-row">
+        <button type="button" data-action="treat"><span class="button-glyph" aria-hidden="true">✦</span><span>Treat</span></button>
+        <button type="button" data-action="huff"><span class="button-glyph" aria-hidden="true">≋</span><span>Huff</span></button>
+        <button type="button" data-action="nap"><span class="button-glyph" aria-hidden="true">☾</span><span id="napLabel">Nap</span></button>
+        <button type="button" data-action="desk"><span class="button-glyph" aria-hidden="true">⌨</span><span>Desk</span></button>
+        <button type="button" data-action="settings"><span class="button-glyph" aria-hidden="true">⚙</span><span>Settings</span></button>
+      </div>
+      <div class="connection-block" id="connectionBlock" title="This app works on this device and does not call external services"><span class="connection-dot"></span><span id="connectionText">LOCAL</span></div>
+    </footer>
+  </div>
+  <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+    <div class="modal-head"><div><small>DEXTER / CONTROL ROOM</small><h2 id="settingsTitle">House rules.</h2></div><button type="button" class="square-button" id="closeSettings" aria-label="Close settings">×</button></div>
+    <p class="modal-intro">Dexter requires no cloud, no account, and absolutely no explanation.</p>
+    <label class="setting"><span><strong>Enable tiny sounds</strong><small>Off by default. Generated locally after a click.</small></span><input type="checkbox" id="soundToggle"></label>
+    <label class="setting"><span><strong>Quiet presence</strong><small>No unsolicited remarks. Actions still work.</small></span><input type="checkbox" id="quietToggle"></label>
+    <label class="setting"><span><strong>Reduced motion</strong><small>Keep distinct poses, suppress extra movement.</small></span><input type="checkbox" id="motionToggle"></label>
+    <label class="setting"><span><strong>Idle before resting</strong><small>Activity inside this page only.</small></span><select id="idleSelect"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+    <div class="setting clutter-setting"><span><strong>Make-believe tab pile</strong><small>A local simulation. Dexter cannot see your actual browser tabs.</small></span><div class="counter"><button type="button" id="removeTab" aria-label="Remove simulated tab">−</button><output id="tabCount">0</output><button type="button" id="addTab" aria-label="Add simulated tab">+</button></div></div>
+    <div class="privacy-card"><strong>Privacy, without mythology.</strong><p>No analytics, accounts, recordings, transmitted text, extension permissions or third-party scripts. Only your preferences use localStorage. Offline application files are stored in the browser's service-worker cache. Browser-managed update checks may still contact the app's original host.</p></div>
+    <div class="modal-actions"><button type="button" id="installButton" hidden>Install app</button><button type="button" id="resetSettings">Reset preferences</button><button type="button" id="doneSettings" class="primary">Done</button></div>
+    <p class="footnote">A PWA cannot stay on top of other windows, read typing in other applications, or count unrelated tabs. Those require a separate, explicitly authorized integration.</p>
+  </dialog>
+</body>
+</html>
