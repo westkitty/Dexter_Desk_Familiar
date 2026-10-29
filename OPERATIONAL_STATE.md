@@ -63,3 +63,14 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Modified public release allowlist only for needed small local modules and candidate image; no other files or accounts; source repository remains private.
 - Mandatory gates: exact-head CI, Chromium and WebKit smoke, offline atlas preview/fallback, pointer/touch interactions, no third-party requests, mobile bounds, SW lifecycle and PNG-provenance tests; real Safari manual review still unverified.
 - No native overlay or cross-project writes. Public Pages activation remains blocked outside this change scope. Do not claim promotion to canonical art or a v1.0 release.
+
+## 2026-10-29 — Cross-repository integration verified and merged
+
+- Verified merge: PR #6 `https://github.com/westkitty/Dexter_Desk_Familiar/pull/6`, code commit `a0f06cc7848b36f14059a21f06b5fcb952b08edc`. Source repository remains private; no sibling repositories were modified.
+- Exact merge-commit Node/build/integrity: PASS `https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942488`; 51 unit and SW lifecycle tests plus release allowlist passed.
+- Exact merge-commit Playwright: PASS `https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942441`; Chromium 10/10 and WebKit 10/10, 20/20 total. WebKit does not establish native Safari/macOS acceptance.
+- Three original 96px sprite Git blobs remain unchanged from pre-change baseline: sit `c8423293c4562c64fa03388793055a3e36867b4c`, stand `fedd643fc9eaadd2de5857712eb46666771b61b1`, rest `c8d4cb1d8a4410c07d94bfefcf86fc0afc7043d0`.
+- The 32px candidate remains opt-in, session-only and unapproved for canon. Exact upstream Git blob `ee2e34f8c773e03846ce2800280328f3464a9603` was preserved.
+- Original current-main SW lifecycle safeguards survive and pass; do not merge obsolete worker from `uplift/presence-cadence-20261029`. This older branch is not deleted or merged, and its useful non-SW behavior is superseded by PR #6.
+- GitHub Pages automatic deployment still **FAILED** at `Configure GitHub Pages` due missing repository Pages site; source built correctly, but this code was NOT confirmed publicly hosted. Evidence `https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942407`.
+- Remaining approval gates: verified canonical visual references and explicit user approval, actual Safari/target touch and assistive-tech journeys, real cross-version PWA upgrade/rollback test, long-session performance and v1.0 release certification. Native shell not in scope.

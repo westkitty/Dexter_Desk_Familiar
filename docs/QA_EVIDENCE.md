@@ -53,3 +53,14 @@ No new runtime dependencies, third-party assets, personal input recording, exten
 Cross-repository features staged separately from the old `uplift/presence-cadence-20261029` branch to protect subsequent merged PNG and offline lifecycle fixes. Exact-source provenance of the original `SNES_Dex` candidate asset: Git blob `ee2e34f8c773e03846ce2800280328f3464a9603`. The option to preview is off by default and does not grant visual canon approval.
 
 Before marking verified: exact-head Node CI, complete-cache atomic install and rollback tests, locally served Chromium and WebKit interaction tests, absence of offsite application requests, resource budget, and unchanged original 96px fallback. No claim of actual Safari/macOS runtime testing.
+
+## PR #6 merged — verified source/runtime evidence
+
+- GitHub PR: https://github.com/westkitty/Dexter_Desk_Familiar/pull/6
+- Code commit: `a0f06cc7848b36f14059a21f06b5fcb952b08edc` on `main`
+- Node and release checks: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942488 — PASS, 51/51 tests; 22-file ~90KB distribution with allowlisted scripts, original pose art, and candidate sprite hash verification.
+- Playwright browser checks: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942441 — PASS, Chromium 10/10 + Linux WebKit 10/10; covers direct tap cadence, mobile position, optional atlas loading/fallback, offline reload, source privacy and cache isolation.
+- Repaired early browser defects before merge: original direct reaction dialogue was overwritten by ambient caption; WebKit could briefly position Dexter outside a newly narrowed viewport. Dialogue priority and layout-aware ResizeObserver corrections passed the complete rerun.
+- Three original 96px art objects remain unchanged, verified by direct Git object comparisons.
+- Attempted automatic GitHub Pages deployment: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942407 — FAILED at Pages setup (site not enabled). This is not a code-level test failure; do not claim hosted preview is available.
+- **No visual identity approval.** 32px atlas is an inspector candidate only, from user-owned prior artwork. No native Safari/macOS, real devices, long-session or cross-worker-version manual install replay was executed. Public site not verified.

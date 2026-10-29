@@ -18,3 +18,16 @@ As of 2026-10-29 UTC. Check each item against evidence, not source presence alon
 - [ ] Reproducible final v1.0 ZIP, checksums, and rollback tested.
 
 See `docs/QA_EVIDENCE.md` for exact commit/run URLs. Passing source tests are not evidence of character likeness approval, live Pages hosting or production release.
+
+## 2026-10-29 — v0.3 integration acceptance
+
+- [x] Mainline PNG integrity and offline lifecycle regression tests still pass at `a0f06cc7848b36f14059a21f06b5fcb952b08edc`.
+- [x] New local attention, pointer, audio, response-cadence, atlas geometry and exact Git-blob provenance unit tests pass; 51/51 total.
+- [x] Chromium and Linux WebKit real-browser smoke 20/20 on merge commit, including offline atlas preview and fallback.
+- [x] Existing 96px images remain byte-for-byte unchanged. Candidate 32px atlas remains opt-in/unapproved and can be disabled.
+- [ ] Actual target Mac Safari and mobile touch/accessibility/manual screen-reader testing.
+- [ ] Sprite candidate approved against authoritative reference images for default use.
+- [ ] Full real-browser two-version service-worker upgrade/rollback and sustained performance checks.
+- [ ] GitHub Pages site enabled and externally verified, final distribution/versioned v1.0 release.
+
+These newer checks add evidence to the historical baseline above; they do not automatically complete the open release gates.
