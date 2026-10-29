@@ -1,0 +1,30 @@
+name: Verify Dexter Desk Familiar
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run behavior tests
+        run: npm test
+      - name: Check required PWA assets
+        run: |
+          set -eu
+          for path in assets/dexter-sit-96.png assets/dexter-stand-96.png assets/dexter-rest-96.png icons/icon-192.png icons/icon-512.png; do
+            test -s "$path" || { echo "::error file=$path::Required PNG missing"; exit 1; }
+          done
+      - name: Static source checks
+        run: |
+          node --check app.js
+          node --check sw.js
+          node --check dev-server.mjs
