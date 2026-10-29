@@ -3,16 +3,18 @@ import{isCountedKey,countRecentKeys}from"./src/observations.mjs";
 import{chooseAmbientRoutine}from"./src/director.mjs";
 import{renderState}from"./src/renderer.mjs";
 import{createAudio}from"./src/audio.mjs";
-import{STORAGE_KEY,defaultSettings,readSettings,writeSettings,resetSettings}from"./src/settings.mjs";
+import{defaultSettings,readSettings,writeSettings,resetSettings}from"./src/settings.mjs";
+import{draggedPosition,keyboardPosition}from"./src/interaction.mjs";
 const byId=id=>document.getElementById(id);
 const scene=byId("scene"),pet=byId("pet"),sprite=byId("sprite"),thought=byId("thought"),stateLabel=byId("stateLabel"),sceneCaption=byId("sceneCaption");
 const deskPanel=byId("deskPanel"),typingInput=byId("typingInput"),typingRate=byId("typingRate"),settingsDialog=byId("settingsDialog");
 const systemReduced=Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 const defaults=defaultSettings(systemReduced);
-let preferences=readSettings(window.localStorage,systemReduced);
+const localPreferences=(()=>{try{return window.localStorage}catch{return null}})();
+let preferences=readSettings(localPreferences,systemReduced);
 const bus=new FamiliarBus();
 const audio=createAudio({enabled:()=>preferences.sound});
-let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null,soundContext=null;
+let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null;
 let pointerStart=null,pointerMoved=false,petPosition=50,lastClutterHuff=0,lastWander=0;
 const captions={
  idle:["The department of disapproval remains operational.","A perfectly adequate amount of nothing.","Monitoring the room. Against my better judgment."],
@@ -27,7 +29,7 @@ const captions={
 };
 const labels={idle:"UNIMPRESSED",watching:"OBSERVING",working:"SUPERVISING",judging:"JUDGING",wandering:"PATROLLING",resting:"WITHDRAWN",sleeping:"ASLEEP",huffing:"DISAPPROVING",eating:"APPEASED"};
 const images={idle:"sit",watching:"sit",working:"stand",judging:"sit",wandering:"stand",resting:"rest",sleeping:"rest",huffing:"sit",eating:"stand"};
-function saveSettings(){writeSettings(window.localStorage,preferences)}
+function saveSettings(){writeSettings(localPreferences,preferences)}
 function applySettings(){
  document.body.classList.toggle("reduce-motion",preferences.reducedMotion);
  byId("soundToggle").checked=preferences.sound;
@@ -70,7 +72,8 @@ function tick(){
  byId("clock").textContent=date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
 }
 function openDesk(){deskPanel.hidden=false;lastActivity=Date.now();typingInput.focus();speak("Your text stays here, briefly.",true)}
-function closeDesk(){typingInput.value="";typingTimes=[];deskPanel.hidden=true;keyWindow();byId("pet").focus();tick()}
+function wipeDesk(){typingInput.value="";typingTimes=[];keyWindow()}
+function closeDesk(){wipeDesk();deskPanel.hidden=true;pet.focus();tick()}
 function openSettings(){applySettings();settingsDialog.showModal()}
 function doAction(action){
  lastActivity=Date.now();
@@ -89,7 +92,7 @@ document.querySelectorAll("[data-action]").forEach(button=>button.addEventListen
 byId("closeDesk").addEventListener("click",closeDesk);
 byId("clearDesk").addEventListener("click",()=>{typingInput.value="";typingTimes=[];keyWindow();typingInput.focus()});
 typingInput.addEventListener("keydown",event=>{
- if(event.key==="Escape"){event.preventDefault();closeDesk();return}
+ if(event.key==="Escape"&&!event.isComposing){event.preventDefault();closeDesk();return}
  if(!isCountedKey(event))return;
  typingTimes.push(Date.now());lastActivity=Date.now();const count=keyWindow();
  if(count>=24)bus.publish("judging",52,2600);
@@ -102,7 +105,7 @@ byId("soundToggle").addEventListener("change",event=>{preferences.sound=event.ta
 byId("quietToggle").addEventListener("change",event=>{preferences.quiet=event.target.checked;saveSettings()});
 byId("motionToggle").addEventListener("change",event=>{preferences.reducedMotion=event.target.checked;applySettings();saveSettings()});
 byId("idleSelect").addEventListener("change",event=>{preferences.idleSeconds=Number(event.target.value);saveSettings();tick()});
-byId("resetSettings").addEventListener("click",()=>{preferences={...defaults};resetSettings(window.localStorage);applySettings();speak("Settings have been returned to reason.",true);tick()});
+byId("resetSettings").addEventListener("click",()=>{preferences={...defaults};resetSettings(localPreferences);applySettings();speak("Settings have been returned to reason.",true);tick()});
 function updateClutter(){
  byId("tabCount").textContent=String(simulatedTabs);
  const now=Date.now();
@@ -125,15 +128,24 @@ pet.addEventListener("pointermove",event=>{
  if(!pointerStart)return;
  const delta=event.clientX-pointerStart.x,vertical=event.clientY-pointerStart.y;
  if(Math.abs(delta)>6||Math.abs(vertical)>6)pointerMoved=true;
- if(pointerMoved){const width=scene.clientWidth||1;petPosition=Math.min(85,Math.max(15,pointerStart.position+(delta/width)*100));pet.style.left=petPosition+"%"}
+ if(pointerMoved){petPosition=draggedPosition(pointerStart.position,delta,scene.clientWidth);pet.style.left=petPosition+"%"}
 });
 pet.addEventListener("pointerup",event=>{
  if(!pointerStart)return;pointerStart=null;lastActivity=Date.now();
  if(!pointerMoved)reaction("watching",70,1600,"Personal space is a concept.");
- else{bus.publish("judging",30,1100);speak("Reassigned. Without consultation.",true);tick()}
+ else{byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";bus.publish("judging",30,1100);speak("Reassigned. Without consultation.",true);tick()}
 });
 pet.addEventListener("pointercancel",()=>{pointerStart=null;pointerMoved=false});
-pet.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}});
+pet.addEventListener("keydown",event=>{
+ if(event.altKey||event.ctrlKey||event.metaKey||event.isComposing)return;
+ if(["ArrowLeft","ArrowRight","Home"].includes(event.key)){
+   event.preventDefault();petPosition=keyboardPosition(petPosition,event.key);
+   pet.style.left=petPosition+"%";
+   byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";
+   lastActivity=Date.now();tick();return;
+ }
+ if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}
+});
 scene.addEventListener("pointermove",()=>{lastActivity=Date.now()},{passive:true});
 document.addEventListener("visibilitychange",()=>{if(document.hidden)audio.suspend();tick();});
 window.addEventListener("online",()=>{byId("connectionText").textContent="LOCAL";tick()});
@@ -147,4 +159,4 @@ if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname
 applySettings();keyWindow();tick();
 let ticker=setInterval(tick,1100);
 document.addEventListener("visibilitychange",()=>{clearInterval(ticker);ticker=setInterval(tick,document.hidden?15000:1100);});
-window.addEventListener("pagehide",()=>{clearInterval(ticker);audio.dispose();});
+window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);audio.dispose();});

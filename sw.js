@@ -1,6 +1,6 @@
 const CACHE="dexter-desk-familiar-v2";
 const PREFIX="dexter-desk-familiar-";
-const SHELL=["./","./index.html","./styles.css","./app.js","./src/behavior.mjs","./src/observations.mjs","./src/director.mjs","./src/renderer.mjs","./src/audio.mjs","./src/settings.mjs","./manifest.webmanifest","./assets/dexter-sit-96.png","./assets/dexter-stand-96.png","./assets/dexter-rest-96.png","./icons/icon-192.png","./icons/icon-512.png"];
+const SHELL=["./","./index.html","./styles.css","./app.js","./src/behavior.mjs","./src/observations.mjs","./src/director.mjs","./src/renderer.mjs","./src/audio.mjs","./src/settings.mjs","./src/interaction.mjs","./manifest.webmanifest","./assets/dexter-sit-96.png","./assets/dexter-stand-96.png","./assets/dexter-rest-96.png","./icons/icon-192.png","./icons/icon-512.png"];
 self.addEventListener("install",event=>{
   event.waitUntil((async()=>{const cache=await caches.open(CACHE);try{await cache.addAll(SHELL);}catch(error){await caches.delete(CACHE);throw error;}await self.skipWaiting();})());
 });

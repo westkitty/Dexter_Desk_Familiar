@@ -26,13 +26,14 @@
       <div class="thought-wrap" aria-live="polite" aria-atomic="true"><div class="thought" id="thought">Your attendance has been recorded. Unfortunately.</div></div>
       <div class="orbit orbit-one" aria-hidden="true"></div>
       <div class="orbit orbit-two" aria-hidden="true"></div>
-      <div class="sprite-wrap" id="pet" role="button" tabindex="0" aria-label="Interact with Dexter. Drag to reposition, or press Enter to get a reaction." data-state="idle">
+      <div class="sprite-wrap" id="pet" role="button" tabindex="0" aria-label="Dexter. Drag to reposition, use left and right arrows or Home to move, Enter or Space to interact." aria-keyshortcuts="ArrowLeft ArrowRight Home Enter Space" data-state="idle">
         <span class="sprite-shadow" aria-hidden="true"></span>
         <img id="sprite" class="sprite" src="./assets/dexter-sit-96.png" alt="Pixel portrait of Dexter: floppy black ears, tan eyebrows, cream ruff, narrow eyes, scowl, and curled tail" draggable="false" width="96" height="96">
         <span class="puff" aria-hidden="true">hff.</span>
         <span class="sleeping-marks" aria-hidden="true">z<span>z</span><span>z</span></span>
         <span class="treat-stars" aria-hidden="true">✦</span>
       </div>
+      <output class="visually-hidden" id="petPositionStatus" aria-live="polite">Dexter centered on the desk.</output>
       <div class="floor" aria-hidden="true"></div>
       <div class="habitat-bottom"><span id="sceneCaption">PRESENT · UNIMPRESSED</span><span>NO ACCOUNT · NO TELEMETRY</span></div>
       <section class="desk-panel" id="deskPanel" hidden aria-labelledby="deskTitle">

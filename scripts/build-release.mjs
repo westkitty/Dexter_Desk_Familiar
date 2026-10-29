@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
 const dist=join(root,"dist");
 const files=["index.html","styles.css","app.js","sw.js","manifest.webmanifest",
- "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs",
+ "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs","src/interaction.mjs",
  "assets/dexter-sit-96.png","assets/dexter-stand-96.png","assets/dexter-rest-96.png",
  "icons/icon-192.png","icons/icon-512.png"];
 const sizes={"assets/dexter-sit-96.png":96,"assets/dexter-stand-96.png":96,"assets/dexter-rest-96.png":96,
