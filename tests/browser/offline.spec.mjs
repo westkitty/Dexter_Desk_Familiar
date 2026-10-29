@@ -26,12 +26,13 @@ test("offline worker cannot serve an unrelated resource from Cache Storage",asyn
  await page.goto("/");
  await page.evaluate(()=>navigator.serviceWorker.ready);
  await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
- const result=await page.evaluate(async()=>{
+ await page.evaluate(async()=>{
    const cache=await caches.open("unrelated-application-cache");
    await cache.put("./private-note.txt",new Response("not Dexter data"));
-   const response=await fetch("./private-note.txt");
-   return {status:response.status,body:await response.text()};
  });
- expect(result.status).toBe(404);
- expect(result.body).not.toContain("not Dexter data");
+ // The app's connect-src 'none' intentionally blocks window.fetch(); use a
+ // document navigation so the actual service worker handles this request.
+ const response=await page.goto("/private-note.txt",{waitUntil:"domcontentloaded"});
+ expect(response.status()).toBe(404);
+ expect(await page.locator("body").innerText()).not.toContain("not Dexter data");
 });
