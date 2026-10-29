@@ -100,6 +100,10 @@ test("narrow viewport keeps Dexter fully visible and clock light is local",async
  const pet=page.locator("#pet");await pet.focus();
  for(let i=0;i<9;i++)await pet.press("ArrowRight");
  await page.setViewportSize({width:320,height:670});
+ await page.waitForFunction(()=>{
+  const r=document.querySelector("#pet").getBoundingClientRect();
+  return r.left>=6&&r.right<=314;
+ });
  const result=await page.evaluate(()=>{
   const rect=document.querySelector("#pet").getBoundingClientRect();
   return {left:rect.left,right:rect.right,light:document.querySelector("#scene").dataset.light};

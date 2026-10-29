@@ -21,7 +21,7 @@ const audio=createAudio({enabled:()=>preferences.sound});
 const remarks=createRemarks(),attentionBudget=createAttentionBudget(),pointerPresence=createPointerPresence(),pokeRhythm=createPokeRhythm();
 const spritePreview=createSpritePreview({canvas:byId("atlasCanvas"),fallback:sprite});
 
-let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null;
+let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null,explicitCaptionUntil=0;
 let pointerStart=null,pointerMoved=false,petPosition=50,lastClutterHuff=0,lastWander=0;
 const captions={
  idle:["The department of disapproval remains operational.","A perfectly adequate amount of nothing.","Monitoring the room. Against my better judgment."],
@@ -45,7 +45,13 @@ function applySettings(){
  byId("idleSelect").value=String(preferences.idleSeconds);
  spritePreview.setReducedMotion(preferences.reducedMotion);
 }
-function speak(msg,force=false){if(preferences.quiet&&!force)return;if(msg!==lastCaption){thought.textContent=msg;lastCaption=msg}}
+function speak(msg,force=false){
+ const now=Date.now();
+ if(preferences.quiet&&!force)return;
+ if(!force&&now<explicitCaptionUntil)return;
+ if(force)explicitCaptionUntil=now+2400;
+ if(msg!==lastCaption){thought.textContent=msg;lastCaption=msg;}
+}
 function huffSound(){audio.play("huff")}
 function reaction(state,priority=80,duration=1600,message){
  const now=Date.now();bus.publish(state,priority,duration,now);lastActivity=now;manualNap=false;
@@ -185,9 +191,13 @@ pet.addEventListener("keydown",event=>{
  }
  if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}
 });
-window.addEventListener("resize",()=>{
- petPosition=safePosition(petPosition,scene.clientWidth,pet.clientWidth);pet.style.left=petPosition+"%";
-});
+function constrainPetPosition(){
+ petPosition=safePosition(petPosition,scene.getBoundingClientRect().width,pet.getBoundingClientRect().width);
+ pet.style.left=petPosition+"%";
+}
+const positionObserver=typeof ResizeObserver==="function"?new ResizeObserver(constrainPetPosition):null;
+positionObserver?.observe(scene);positionObserver?.observe(pet);
+window.addEventListener("resize",constrainPetPosition);
 scene.addEventListener("pointermove",event=>{
  lastActivity=Date.now();
  if(pointerStart||document.hidden||preferences.quiet||!deskPanel.hidden||settingsDialog.open)return;
@@ -213,4 +223,4 @@ if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname
 applySettings();keyWindow();tick();
 let ticker=setInterval(tick,1100);
 document.addEventListener("visibilitychange",()=>{clearInterval(ticker);ticker=setInterval(tick,document.hidden?15000:1100);});
-window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);spritePreview.dispose();audio.dispose();});
+window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);positionObserver?.disconnect();window.removeEventListener("resize",constrainPetPosition);spritePreview.dispose();audio.dispose();});
