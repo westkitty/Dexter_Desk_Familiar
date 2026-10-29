@@ -102,7 +102,7 @@ byId("soundToggle").addEventListener("change",event=>{preferences.sound=event.ta
 byId("quietToggle").addEventListener("change",event=>{preferences.quiet=event.target.checked;saveSettings()});
 byId("motionToggle").addEventListener("change",event=>{preferences.reducedMotion=event.target.checked;applySettings();saveSettings()});
 byId("idleSelect").addEventListener("change",event=>{preferences.idleSeconds=Number(event.target.value);saveSettings();tick()});
-byId("resetSettings").addEventListener("click",()=>{preferences={...defaults};resetSettings(window.localStorage)applySettings();speak("Settings have been returned to reason.",true);tick()});
+byId("resetSettings").addEventListener("click",()=>{preferences={...defaults};resetSettings(window.localStorage);applySettings();speak("Settings have been returned to reason.",true);tick()});
 function updateClutter(){
  byId("tabCount").textContent=String(simulatedTabs);
  const now=Date.now();
