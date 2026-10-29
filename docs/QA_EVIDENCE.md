@@ -36,3 +36,14 @@ No new runtime dependencies, third-party assets, personal input recording, exten
 - **Browser follow-up:** https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40827430405 (final status must be read before claiming a pass).
 - **Remaining gates:** Safari/manual touch/assistive-tech checks, full offline upgrade/rollback, expanded 96×96 plus independent 32×32 art approval, long-soak performance, and public Pages activation/HTTPS proof.
 - **Scope:** `main` remains unchanged by this work. Branch edits are a bounded asset repair, regression test and evidence update; merge/release/publish remain separate actions.
+
+## 2026-10-29 — Offline lifecycle continuation on `build/offline-lifecycle-20261029`
+
+- Source baseline: proposed PNG fix PR #4 head `a92a5580150fdc81e77a6d497da560bef09652a7` (not merged into `main`); this task must be merged only after PR #4 or reconciled as a dependent PR.
+- **RED**: six deterministic service-worker lifecycle tests were exercised against original `sw.js`; four failed (forced activation, incomplete-cache cleanup, stale cache precedence, and unrelated cache access). Local log: `red.log` in this work unit, not a durable remote artifact.
+- **GREEN implementation:** `80f84904df6f4269349f13ba1d27e4567015caea` introduces version `dexter-desk-familiar-v3`, scoped shell-only cache reads, complete-cache activation check, failed-install cleanup and no `skipWaiting()` takeover. Cloud Node/build PASS: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40835162640.
+- **Real Chromium tests:** new fresh-window offline reopening and unrelated-cache isolation tests plus the four existing journeys: 6/6 PASS at `12e0d8c7b7a5759c98f45386131401160498e6b0`: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40835443533. Node/build PASS at same SHA: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40835443534.
+- Two browser-test corrections were necessary: strict app CSP blocks in-page `fetch`, and unknown document navigations intentionally serve the offline index fallback with HTTP 200; the final test asserts that unrelated cached content is never exposed.
+- **Not yet proven:** real interrupted upgrade with two successive service-worker revisions and browser shutdown/reopen; service-worker update notification UX; manual Safari install/update; long-session soak; final 32px/96px visual approval; live Pages activation. Browser success is not proof of these gates.
+- GitHub Actions screenshot upload failed during earlier red runs because Actions artifact storage quota was exceeded; no artifacts were deleted and those optional uploads do not invalidate the observed test failures.
+- Scope preserved: no third-party runtime assets, monitoring outside Dexter's page, native shell, changes to WESTCAT repositories, or changes to `main`.
