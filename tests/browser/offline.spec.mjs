@@ -33,6 +33,8 @@ test("offline worker cannot serve an unrelated resource from Cache Storage",asyn
  // The app's connect-src 'none' intentionally blocks window.fetch(); use a
  // document navigation so the actual service worker handles this request.
  const response=await page.goto("/private-note.txt",{waitUntil:"domcontentloaded"});
- expect(response.status()).toBe(404);
+ // Unknown navigations intentionally fall back to Dexter's offline shell.
+ expect(response.status()).toBe(200);
+ await expect(page.locator("#sprite")).toBeVisible();
  expect(await page.locator("body").innerText()).not.toContain("not Dexter data");
 });
