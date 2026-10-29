@@ -74,3 +74,38 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 @media (max-height:510px){.thought-wrap{top:18%}.thought{padding:6px 12px}.sprite-wrap{height:45vh;width:45vh;bottom:12%}.habitat-bottom{display:none}.masthead{top:9px}.dock{min-height:62px}.button-row button{height:48px}}
 
 .visually-hidden{position:absolute!important;left:-10000px!important;top:auto!important;width:1px!important;height:1px!important;overflow:hidden!important;white-space:nowrap!important;clip-path:inset(50%)!important}
+/* Dexter's room changes with local daylight. No sensor, location or network access. */
+.scene[data-light="morning"]{
+ background:radial-gradient(ellipse at 47% 74%,#3f4b46 0%,#29383a 34%,#172126 67%,#111a1f 100%);
+}
+.scene[data-light="day"]{
+ background:radial-gradient(ellipse at 52% 73%,#34474a 0%,#223237 36%,#142127 70%,#10181d 100%);
+}
+.scene[data-light="evening"]{
+ background:radial-gradient(ellipse at 57% 73%,#4d4138 0%,#2c3334 33%,#182127 67%,#10171c 100%);
+}
+.scene[data-light="night"]{
+ background:radial-gradient(ellipse at 50% 75%,#293437 0%,#1b292e 36%,#111b21 72%,#0c1419 100%);
+}
+.scene[data-light="morning"] .ambient-light{opacity:.88;filter:hue-rotate(6deg)}
+.scene[data-light="day"] .ambient-light{opacity:1}
+.scene[data-light="evening"] .ambient-light{opacity:.92;filter:hue-rotate(-12deg)}
+.scene[data-light="night"] .ambient-light{opacity:.36}
+/* Grounding rings become a quiet floor texture rather than distracting orbit graphics. */
+.orbit-one{background:radial-gradient(ellipse at center,#e1c49813,transparent 75%);opacity:.5;border-color:#b9ab873a}
+.orbit-two{opacity:.22;border-style:solid;border-color:#ab997755}
+@media (prefers-reduced-motion:reduce){.ambient-light{transition:none!important}}
+@media (max-height:500px){
+ .sprite-wrap{width:clamp(105px,39vh,210px);height:clamp(105px,39vh,210px)}
+ .thought-wrap{top:14%}
+ .thought{padding:5px 9px}
+ .dock{max-height:none;min-height:54px}
+ .button-row button{height:44px;min-width:53px}
+}
+
+/* Reaction-specific light and ground shadows follow real state, not decoration. */
+.scene[data-mood="huffing"] .thought{border-color:#b9946977}
+.scene[data-mood="eating"] .ambient-light{opacity:.95}
+.scene[data-mood="sleeping"] .ambient-light{opacity:.27}
+.scene[data-mood="sleeping"] .orbit-one{opacity:.18}
+.scene[data-mood="wandering"] .orbit-one{opacity:.65}

@@ -1,10 +1,11 @@
 import{FamiliarBus,effectiveState}from"./src/behavior.mjs";
 import{isCountedKey,countRecentKeys}from"./src/observations.mjs";
-import{chooseAmbientRoutine}from"./src/director.mjs";
+import{chooseAmbientRoutine,lightBand}from"./src/director.mjs";
 import{renderState}from"./src/renderer.mjs";
 import{createAudio}from"./src/audio.mjs";
 import{defaultSettings,readSettings,writeSettings,resetSettings}from"./src/settings.mjs";
-import{draggedPosition,keyboardPosition}from"./src/interaction.mjs";
+import{safePosition,draggedPosition,keyboardPosition}from"./src/interaction.mjs";
+import{createRemarks}from"./src/remarks.mjs";
 const byId=id=>document.getElementById(id);
 const scene=byId("scene"),pet=byId("pet"),sprite=byId("sprite"),thought=byId("thought"),stateLabel=byId("stateLabel"),sceneCaption=byId("sceneCaption");
 const deskPanel=byId("deskPanel"),typingInput=byId("typingInput"),typingRate=byId("typingRate"),settingsDialog=byId("settingsDialog");
@@ -14,6 +15,7 @@ const localPreferences=(()=>{try{return window.localStorage}catch{return null}})
 let preferences=readSettings(localPreferences,systemReduced);
 const bus=new FamiliarBus();
 const audio=createAudio({enabled:()=>preferences.sound});
+const remarks=createRemarks();
 let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null;
 let pointerStart=null,pointerMoved=false,petPosition=50,lastClutterHuff=0,lastWander=0;
 const captions={
@@ -41,7 +43,7 @@ function speak(msg,force=false){if(preferences.quiet&&!force)return;if(msg!==las
 function huffSound(){audio.play("huff")}
 function reaction(state,priority=80,duration=1600,message){
  const now=Date.now();bus.publish(state,priority,duration,now);lastActivity=now;manualNap=false;
- if(message)speak(message,true);
+ if(message)speak(remarks.choose(state,message,now),true);
  byId("napLabel").textContent="Nap";
  if(state==="huffing")huffSound();
  tick();
@@ -53,6 +55,7 @@ function keyWindow(now=Date.now()){
 }
 function tick(){
  const now=Date.now(),date=new Date(now),night=date.getHours()>=23||date.getHours()<6;
+ scene.dataset.light=lightBand(date.getHours());
  const keys=keyWindow(now);
  const context={now,lastActivity,idleMs:preferences.idleSeconds*1000,typingKeys:keys,night,manualNap,visible:document.visibilityState!=="hidden"};
  let next=effectiveState(bus,context);
@@ -65,6 +68,7 @@ function tick(){
  }
  if(next!==lastState){
   renderState(next,{pet,sprite,stateLabel,sceneCaption},lastState);
+  scene.dataset.mood=next;
   lastState=next;
   const options=captions[next];const choice=options[Math.floor(Math.random()*options.length)];
   speak(choice);
@@ -128,7 +132,7 @@ pet.addEventListener("pointermove",event=>{
  if(!pointerStart)return;
  const delta=event.clientX-pointerStart.x,vertical=event.clientY-pointerStart.y;
  if(Math.abs(delta)>6||Math.abs(vertical)>6)pointerMoved=true;
- if(pointerMoved){petPosition=draggedPosition(pointerStart.position,delta,scene.clientWidth);pet.style.left=petPosition+"%"}
+ if(pointerMoved){petPosition=draggedPosition(pointerStart.position,delta,scene.clientWidth,pet.clientWidth);pet.style.left=petPosition+"%"}
 });
 pet.addEventListener("pointerup",event=>{
  if(!pointerStart)return;pointerStart=null;lastActivity=Date.now();
@@ -139,15 +143,19 @@ pet.addEventListener("pointercancel",()=>{pointerStart=null;pointerMoved=false})
 pet.addEventListener("keydown",event=>{
  if(event.altKey||event.ctrlKey||event.metaKey||event.isComposing)return;
  if(["ArrowLeft","ArrowRight","Home"].includes(event.key)){
-   event.preventDefault();petPosition=keyboardPosition(petPosition,event.key);
+   event.preventDefault();petPosition=keyboardPosition(petPosition,event.key,scene.clientWidth,pet.clientWidth);
    pet.style.left=petPosition+"%";
    byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";
    lastActivity=Date.now();tick();return;
  }
  if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}
 });
+window.addEventListener("resize",()=>{
+ petPosition=safePosition(petPosition,scene.clientWidth,pet.clientWidth);
+ pet.style.left=petPosition+"%";
+});
 scene.addEventListener("pointermove",()=>{lastActivity=Date.now()},{passive:true});
-document.addEventListener("visibilitychange",()=>{if(document.hidden)audio.suspend();tick();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){bus.clear();remarks.reset();audio.suspend();}tick();});
 window.addEventListener("online",()=>{byId("connectionText").textContent="LOCAL";tick()});
 window.addEventListener("offline",()=>{byId("connectionText").textContent="OFFLINE";tick()});
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;byId("installButton").hidden=false});

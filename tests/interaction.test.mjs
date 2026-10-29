@@ -16,3 +16,10 @@ test("keyboard moves in 5 percent increments with Home reset",()=>{
  assert.equal(keyboardPosition(75,"Home"),50);
  assert.equal(keyboardPosition(50,"Other"),50);
 });
+
+test("mobile bounds keep the whole dog onscreen with 8px margin",()=>{
+ const width=320,petWidth=201;
+ const position=keyboardPosition(85,"ArrowRight",width,petWidth);
+ assert.ok(position/100*width+petWidth/2<=width-8);
+ assert.ok(position/100*width-petWidth/2>=8);
+});

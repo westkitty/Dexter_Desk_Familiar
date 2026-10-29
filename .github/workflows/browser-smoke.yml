@@ -1,7 +1,7 @@
 name: Browser smoke — Dexter
 on:
   push:
-    branches: [main, 'build/**']
+    branches: [main, 'build/**', 'uplift/**']
   workflow_dispatch:
 permissions:
   contents: read

@@ -25,3 +25,7 @@ Merged production-source commit: `d41e7dfdfeb7ddc0f38192cc3240249bfdd03594`.
 
 ## Scope preserved
 No new runtime dependencies, third-party assets, personal input recording, extension permissions, native-overlay claim, public repository visibility change, or edits to WESTCAT projects.
+
+## v0.3 uplift candidate — unverified after application
+
+The newly added focused unit/VM tests cover authored action sequences, view bounds and service-worker failed-install rollback. Passing those focused tests alone is **not** evidence of production integration. Run the repository CI and browser smoke suite on the exact changed revision before promoting this state.

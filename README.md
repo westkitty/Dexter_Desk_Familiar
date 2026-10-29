@@ -55,3 +55,7 @@ See \`docs/PRODUCT_BLUEPRINT.md\` and \`docs/WESTCAT_LINEAGE.md\`. Keep the app 
 Run `npm run check` to verify the allowlisted public bundle. Only the contents of `dist/` may be deployed via the main-only GitHub Pages workflow. `docs/PAGES_DEPLOYMENT.md` documents setup and the private-source boundary. Cloud Chromium smoke tests are kept out of the runtime bundle, and may be run with `npx playwright test` after installing the test tooling. An installation, offline, Safari and final character-likeness release gate still remain.
 
 Focused Dexter supports Left/Right arrow keys to reposition in 5% increments and Home to re-center; pointer drag is also supported. The typing desk erases text when closed or when the page is left.
+
+## Local-presence refinements (v0.3 candidate)
+
+Repeated Treat, Huff and direct interactions have a short, memory-only conversational cadence; no action history is stored. The local clock gently changes the habitat lighting. Dexter's drag and keyboard positioning stay inside the visible stage after narrow-window resize. All new files remain inside the offline release allowlist; validation is required before release.

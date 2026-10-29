@@ -43,3 +43,10 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - GitHub Pages status: **BLOCKED/NOT ACTIVE**. Workflow deployment failed at `actions/configure-pages` because the repository has no enabled Pages site (404): https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40811823061. The necessary authenticated MacBook CLI mutation was prevented before execution by DEX//REACH resource scheduling; do not claim Pages setup happened. Next permitted step: activate the existing private repo Pages source as GitHub Actions via an authorized healthy account context, then rerun deployment and check HTTPS.
 - Outstanding: final approved 96×96 and separate 32×32 Dexter animation atlas, Safari/manual touch/assistive technology tests, one-hour performance/long-session measurement, public site network proof, distribution ZIP/versioned release gate. Native overlay still NOT authorized.
 - Protection: preserve local-only input observation and preferences-only storage, no monitoring outside window, no external runtime services, no cross-project writes, private source repository. Public GitHub Pages host will necessarily serve static assets over HTTPS.
+
+## 2026-10-29 — v0.3 uplift candidate (apply state)
+
+- This source patch has been applied to an exact checked-out baseline but is **implemented-unverified** until native repository tests and real browser checks run on the changed files.
+- Intended scope: in-window response cadence, hidden-state cleanup, viewport-safe positioning, local time-band lighting and a single-version offline cache. No external signals or new artwork.
+- Protected: private repository, three existing reference-derived sprites, no text storage, no backend, no native monitoring.
+- Pending: full repository CI, live browser/visual QA, final art approval, Pages activation and versioned release.

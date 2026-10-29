@@ -69,3 +69,18 @@ test("offline reload serves cached app with no network",async({page,context})=>{
    await expect(page.locator("#stateLabel")).toBeVisible();
  }finally{await context.setOffline(false);}
 });
+
+test("Dexter stays onscreen after moving to mobile; time-of-day remains page-local",async({page})=>{
+ await page.goto("/");
+ const pet=page.locator("#pet");
+ await pet.focus();
+ for(let i=0;i<9;i++)await pet.press("ArrowRight");
+ await page.setViewportSize({width:320,height:670});
+ const result=await page.evaluate(()=>{
+  const r=document.querySelector("#pet").getBoundingClientRect();
+  return {left:r.left,right:r.right,light:document.querySelector("#scene").dataset.light};
+ });
+ expect(result.left).toBeGreaterThanOrEqual(6);
+ expect(result.right).toBeLessThanOrEqual(314);
+ expect(["morning","day","evening","night"]).toContain(result.light);
+});
