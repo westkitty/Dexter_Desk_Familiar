@@ -31,3 +31,13 @@ See `docs/QA_EVIDENCE.md` for exact commit/run URLs. Passing source tests are no
 - [ ] GitHub Pages site enabled and externally verified, final distribution/versioned v1.0 release.
 
 These newer checks add evidence to the historical baseline above; they do not automatically complete the open release gates.
+
+## 2026-10-29 — GitHub Pages deployment gate update
+
+- [x] GitHub Pages configured as GitHub Actions source, enabled under the authenticated repository owner.
+- [x] Manual production deployment from `main` `ad6e2433597303a415e878d3e9e9bff661c523e9` succeeded: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40846064963
+- [x] Public HTTPS checks showed the app shell, JavaScript, animation module and 32px sprite asset served successfully.
+- [x] Public website exclusions: README.md and OPERATIONAL_STATE.md did not appear at hosted URLs (HTTP 404).
+- [ ] Canonical art approval, native Safari/mobile manual checks, real upgrade/rollback acceptance and v1.0 release remain pending.
+
+**Current repository visibility: PUBLIC.** Historic references to private source status are superseded; the GitHub repository's documents are publicly accessible even though the hosted website excludes them.

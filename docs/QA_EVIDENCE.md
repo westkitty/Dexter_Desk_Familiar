@@ -64,3 +64,12 @@ Before marking verified: exact-head Node CI, complete-cache atomic install and r
 - Three original 96px art objects remain unchanged, verified by direct Git object comparisons.
 - Attempted automatic GitHub Pages deployment: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942407 — FAILED at Pages setup (site not enabled). This is not a code-level test failure; do not claim hosted preview is available.
 - **No visual identity approval.** 32px atlas is an inspector candidate only, from user-owned prior artwork. No native Safari/macOS, real devices, long-session or cross-worker-version manual install replay was executed. Public site not verified.
+
+## 2026-10-29 — Pages deployment verified
+
+- GitHub Pages site enabled in workflow mode; repo now **public**, not private.
+- Successful manual GitHub Actions dispatch: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40846064963, `main` commit `ad6e2433597303a415e878d3e9e9bff661c523e9`.
+- External Big Mac HTTPS checks: index 200 (HTML, 8319 bytes), app.js 200 (JavaScript, 14777 bytes), src/animation.mjs 200 (4030 bytes), candidate sprite atlas 200 (PNG, 21415 bytes).
+- Non-release files README.md and OPERATIONAL_STATE.md returned HTTP 404 from the hosted Pages URL; public source files remain accessible in GitHub because repository visibility changed to public.
+- Prior 'site not enabled' failures are superseded for live deployment state; historical logs remain valid as failed attempts.
+- No claim of Mac-native Safari physical-device review, live visual approval, or full v1.0 certification.

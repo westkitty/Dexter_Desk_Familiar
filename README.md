@@ -52,7 +52,7 @@ See \`docs/PRODUCT_BLUEPRINT.md\` and \`docs/WESTCAT_LINEAGE.md\`. Keep the app 
 
 ## Web deployment and browser proof
 
-Run `npm run check` to verify the allowlisted public bundle. Only the contents of `dist/` may be deployed via the main-only GitHub Pages workflow. `docs/PAGES_DEPLOYMENT.md` documents setup and the private-source boundary. Cloud Chromium smoke tests are kept out of the runtime bundle, and may be run with `npx playwright test` after installing the test tooling. An installation, offline, Safari and final character-likeness release gate still remain.
+Run `npm run check` to verify the allowlisted public bundle. Only the contents of `dist/` may be deployed via the main-only GitHub Pages workflow. `docs/PAGES_DEPLOYMENT.md` documents setup and the public-source deployment boundary. Cloud Chromium smoke tests are kept out of the runtime bundle, and may be run with `npx playwright test` after installing the test tooling. An installation, offline, Safari and final character-likeness release gate still remain.
 
 Focused Dexter supports Left/Right arrow keys to reposition in 5% increments and Home to re-center; pointer drag is also supported. The typing desk erases text when closed or when the page is left.
 
@@ -66,3 +66,9 @@ A lightweight local presence observer distinguishes brief pointer approach, stat
 The service worker retains the tested no-forced-activation, complete-cache-before-purge and app-scoped-cache protections from the newer `main`. The old uplift branch's service worker was **not** merged; useful behavior was reapplied on top of those protections.
 
 See `docs/ATLAS_CANDIDATE.md` for pixel provenance and approval boundaries. These assets are not promoted to canonical art until the user has approved them.
+
+## Public preview (2026-10-29)
+
+**Live:** https://westkitty.github.io/Dexter_Desk_Familiar/
+
+Pages was activated in GitHub Actions mode. The deployment workflow run 40846064963 succeeded from `main` at `ad6e2433597303a415e878d3e9e9bff661c523e9`. External HTTPS checks returned 200 for the site, app JavaScript, animation module, and opt-in candidate atlas; README and Operational State were 404 on the *hosted website*. The GitHub repository itself is now **public**, so source and project documentation are accessible on GitHub. Do not confuse exclusion from the hosted site with repo secrecy. Final visual canon approval, physical Safari and v1.0 release gates remain open.

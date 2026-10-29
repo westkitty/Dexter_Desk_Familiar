@@ -74,3 +74,12 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Original current-main SW lifecycle safeguards survive and pass; do not merge obsolete worker from `uplift/presence-cadence-20261029`. This older branch is not deleted or merged, and its useful non-SW behavior is superseded by PR #6.
 - GitHub Pages automatic deployment still **FAILED** at `Configure GitHub Pages` due missing repository Pages site; source built correctly, but this code was NOT confirmed publicly hosted. Evidence `https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40842942407`.
 - Remaining approval gates: verified canonical visual references and explicit user approval, actual Safari/target touch and assistive-tech journeys, real cross-version PWA upgrade/rollback test, long-session performance and v1.0 release certification. Native shell not in scope.
+
+## 2026-10-29 — Pages activation closed (current evidence)
+
+- GitHub repository visibility was directly observed as **public**. This supersedes historical `private` statements; no reversal of visibility was requested or performed in this turn.
+- Pages site already configured when rechecked using authenticated user `westkitty`: `build_type=workflow`; `html_url=https://westkitty.github.io/Dexter_Desk_Familiar/`.
+- Manual dispatch from `main` at `ad6e2433597303a415e878d3e9e9bff661c523e9`: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40846064963 — **SUCCESS**.
+- Separate-machine external HTTPS probe: index 200, app.js 200, src/animation.mjs 200 and candidate atlas 200. Hosted site returned 404 for README.md and OPERATIONAL_STATE.md; those files remain publicly accessible through the source repository because the repository is public.
+- All past 'Pages not enabled / not live' entries are historical and superseded by this verified deployment. Preserve earlier error evidence; do not continue treating the site as blocked.
+- Unresolved: canon approval for candidate sprite, physical Safari/mobile/accessibility, long-session performance, cross-version service-worker rollback and v1.0 release readiness. Successful publishing is not evidence of those gates.
