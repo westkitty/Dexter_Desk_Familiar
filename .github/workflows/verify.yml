@@ -30,7 +30,7 @@ jobs:
             const app=fs.readFileSync("app.js","utf8");
             const sw=fs.readFileSync("sw.js","utf8");
             const server=fs.readFileSync("dev-server.mjs","utf8");
-            for(const path of ["behavior","observations","director","renderer","audio","settings"]){
+            for(const path of ["behavior","observations","director","renderer","audio","settings","interaction"]){
               if(!app.includes("./src/"+path+".mjs"))throw Error("App import missing "+path);
               if(!sw.includes("./src/"+path+".mjs"))throw Error("Offline cache missing "+path);
               if(!server.includes("/src/"+path+".mjs"))throw Error("Local server missing "+path);
