@@ -2,7 +2,7 @@
 
 A small, opinionated, privacy-first browser familiar starring **Dexter**. Three reference-derived pixel poses and a semantic behavior engine. He is present first; the UI stays secondary.
 
-**Status:** v0.1 playable browser/PWA foundation, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
+**Status:** v0.2.x working browser/PWA foundation, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
 
 ## Run locally
 
@@ -49,3 +49,9 @@ Run \`npm test\`. Service-worker and offline/installation behavior must addition
 ## Product evolution
 
 See \`docs/PRODUCT_BLUEPRINT.md\` and \`docs/WESTCAT_LINEAGE.md\`. Keep the app independent of WESTCAT Familiar: borrow interaction *concepts*, never copy its code or transfer its project-specific DOM/CSS art restrictions.
+
+## Web deployment and browser proof
+
+Run `npm run check` to verify the allowlisted public bundle. Only the contents of `dist/` may be deployed via the main-only GitHub Pages workflow. `docs/PAGES_DEPLOYMENT.md` documents setup and the private-source boundary. Cloud Chromium smoke tests are kept out of the runtime bundle, and may be run with `npx playwright test` after installing the test tooling. An installation, offline, Safari and final character-likeness release gate still remain.
+
+Focused Dexter supports Left/Right arrow keys to reposition in 5% increments and Home to re-center; pointer drag is also supported. The typing desk erases text when closed or when the page is left.
