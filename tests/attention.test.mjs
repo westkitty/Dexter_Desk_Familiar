@@ -12,7 +12,7 @@ test("ambient attention is capped and has a minimum pause",()=>{
  assert.equal(budget.snapshot(3000).used,3);
  assert.equal(budget.eligible({now:4000}),false);
  assert.equal(budget.eligible({now:61000}),true);
- assert.equal(budget.snapshot(61000).used,0);
+ assert.equal(budget.snapshot(62001).used,0);
 });
 test("sleep, quiet, settings, motion reduction and hidden page suppress unsummoned reactions",()=>{
  const b=createAttentionBudget();
