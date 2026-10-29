@@ -33,6 +33,7 @@ export function ambientState({now=Date.now(),lastActivity=now,idleMs=60000,typin
   return "idle";
 }
 export function effectiveState(bus,context={}) {
+  if(context.visible===false)return "sleeping";
   const forced=bus.current(context.now??Date.now());
   if(context.manualNap) return forced==="eating"?"eating":"sleeping";
   return forced??ambientState(context);

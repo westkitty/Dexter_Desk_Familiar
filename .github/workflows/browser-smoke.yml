@@ -16,8 +16,8 @@ jobs:
           node-version: '22'
       - name: Install test tooling only
         run: npm install --no-save --no-package-lock --ignore-scripts @playwright/test@1.64.1
-      - name: Install cloud Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install cloud Chromium and WebKit
+        run: npx playwright install --with-deps chromium webkit
       - name: Exercise real browser behavior
         run: npx playwright test --config=playwright.config.mjs
         env:

@@ -74,3 +74,18 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 @media (max-height:510px){.thought-wrap{top:18%}.thought{padding:6px 12px}.sprite-wrap{height:45vh;width:45vh;bottom:12%}.habitat-bottom{display:none}.masthead{top:9px}.dock{min-height:62px}.button-row button{height:48px}}
 
 .visually-hidden{position:absolute!important;left:-10000px!important;top:auto!important;width:1px!important;height:1px!important;overflow:hidden!important;white-space:nowrap!important;clip-path:inset(50%)!important}
+
+/* Time-of-day light is computed from the local browser clock. No ambient device sensors. */
+.scene[data-light="morning"]{background:radial-gradient(ellipse at 47% 73%,#3f4b46 0%,#29383a 34%,#172126 67%,#111a1f 100%)}
+.scene[data-light="day"]{background:radial-gradient(ellipse at 52% 73%,#34474a 0%,#223237 36%,#142127 70%,#10181d 100%)}
+.scene[data-light="evening"]{background:radial-gradient(ellipse at 57% 73%,#4d4138 0%,#2c3334 33%,#182127 67%,#10171c 100%)}
+.scene[data-light="night"]{background:radial-gradient(ellipse at 50% 75%,#293437 0%,#1b292e 36%,#111b21 72%,#0c1419 100%)}
+.scene[data-light="evening"] .ambient-light{opacity:.88}
+.scene[data-light="night"] .ambient-light{opacity:.36}
+.scene[data-mood="sleeping"] .ambient-light{opacity:.24}
+.scene[data-mood="huffing"] .thought{border-color:#b9946977}
+.scene[data-mood="wandering"] .orbit-one{opacity:.68}
+.atlas-canvas{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 14px 12px #0a0e1199)}
+.atlas-status{display:block;padding:8px 0 14px;font-size:12px;color:var(--muted)}
+body.reduce-motion .atlas-canvas{animation:none!important}
+@media (max-height:500px){.sprite-wrap{width:clamp(105px,39vh,210px);height:clamp(105px,39vh,210px)}.thought-wrap{top:14%}.thought{padding:5px 9px}.button-row button{height:44px;min-width:53px}}

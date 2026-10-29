@@ -52,3 +52,14 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Implemented-but-unverified: real partial-upgrade browser replay across two service-worker revisions, crash/rollback handling in Safari, update prompt and controlled reload, PWA site publication.
 - Known GitHub infrastructure limitation: optional failed-test artifact upload can fail with quota exceeded. Do not clear unrelated artifacts without independent evidence and authorization.
 - Preserve: page-only sensing, transient typed text, privacy-first offline behavior, current working DOM/actions, no runtime dependencies, no native shell and no changes to sibling WESTCAT projects.
+
+## 2026-10-29 — Cross-repository integration branch (staged and pending exact-head CI)
+
+- Branch identity: `build/atlas-presence-reconcile-20261029` derived from verified `main` at `d666817d1f4d81ebbe39226551f85e9195150176`.
+- Existing unmerged older uplift head `5478a368493600c49edcc614d6a020a81d62551b` diverged from new `main` and carried an obsolete service worker. Reapply selected useful changes onto current `main`; **do not merge that worker**.
+- New (implemented, not yet release-verified): bounded ambient attention budget, page-only pointer proximity/pace and repeated-poke semantics, ephemeral authored response cadence, current-hour habitat lighting, mobile character bounds, optional audio throttling, and a candidate 32px animation preview.
+- Candidate source `westkitty/SNES_Dex` / `original/dexter_sprites.png`, Git object `ee2e34f8c773e03846ce2800280328f3464a9603`, copied byte-for-byte and NOT canon-approved. Existing 96px images remain the default.
+- New PWA cache version retains mainline no-force-activation, own-cache-only reads, atomic installation, completeness verification before old-cache deletion. Do not replace it with `uplift/presence-cadence-20261029`'s simplified worker.
+- Modified public release allowlist only for needed small local modules and candidate image; no other files or accounts; source repository remains private.
+- Mandatory gates: exact-head CI, Chromium and WebKit smoke, offline atlas preview/fallback, pointer/touch interactions, no third-party requests, mobile bounds, SW lifecycle and PNG-provenance tests; real Safari manual review still unverified.
+- No native overlay or cross-project writes. Public Pages activation remains blocked outside this change scope. Do not claim promotion to canonical art or a v1.0 release.

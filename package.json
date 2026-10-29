@@ -1,12 +1,12 @@
 {
   "name": "dexter-desk-familiar",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "description": "Privacy-first offline browser familiar with reference-derived pixel Dexter",
   "type": "module",
   "scripts": {
     "start": "node dev-server.mjs",
-    "test": "node --test tests/behavior.test.mjs tests/director.test.mjs tests/observations.test.mjs tests/renderer.test.mjs tests/settings.test.mjs tests/interaction.test.mjs tests/png-integrity.test.mjs tests/sw-lifecycle.test.mjs",
+    "test": "node --test tests/behavior.test.mjs tests/director.test.mjs tests/observations.test.mjs tests/renderer.test.mjs tests/settings.test.mjs tests/interaction.test.mjs tests/png-integrity.test.mjs tests/sw-lifecycle.test.mjs tests/animation.test.mjs tests/attention.test.mjs tests/presence.test.mjs tests/remarks.test.mjs tests/audio.test.mjs tests/asset-provenance.test.mjs",
     "build": "node scripts/build-release.mjs",
     "test:release": "node --test tests/release.test.mjs",
     "check": "node --check app.js && node --check sw.js && node --check dev-server.mjs && node --check scripts/build-release.mjs && npm test && npm run build && npm run test:release"

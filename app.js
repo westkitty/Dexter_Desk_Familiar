@@ -1,10 +1,14 @@
 import{FamiliarBus,effectiveState}from"./src/behavior.mjs";
 import{isCountedKey,countRecentKeys}from"./src/observations.mjs";
-import{chooseAmbientRoutine}from"./src/director.mjs";
+import{chooseAmbientRoutine,lightBand}from"./src/director.mjs";
 import{renderState}from"./src/renderer.mjs";
 import{createAudio}from"./src/audio.mjs";
 import{defaultSettings,readSettings,writeSettings,resetSettings}from"./src/settings.mjs";
-import{draggedPosition,keyboardPosition}from"./src/interaction.mjs";
+import{safePosition,draggedPosition,keyboardPosition}from"./src/interaction.mjs";
+import{createRemarks}from"./src/remarks.mjs";
+import{createAttentionBudget}from"./src/attention.mjs";
+import{createPointerPresence,createPokeRhythm}from"./src/presence.mjs";
+import{createSpritePreview}from"./src/animation.mjs";
 const byId=id=>document.getElementById(id);
 const scene=byId("scene"),pet=byId("pet"),sprite=byId("sprite"),thought=byId("thought"),stateLabel=byId("stateLabel"),sceneCaption=byId("sceneCaption");
 const deskPanel=byId("deskPanel"),typingInput=byId("typingInput"),typingRate=byId("typingRate"),settingsDialog=byId("settingsDialog");
@@ -14,7 +18,10 @@ const localPreferences=(()=>{try{return window.localStorage}catch{return null}})
 let preferences=readSettings(localPreferences,systemReduced);
 const bus=new FamiliarBus();
 const audio=createAudio({enabled:()=>preferences.sound});
-let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null;
+const remarks=createRemarks(),attentionBudget=createAttentionBudget(),pointerPresence=createPointerPresence(),pokeRhythm=createPokeRhythm();
+const spritePreview=createSpritePreview({canvas:byId("atlasCanvas"),fallback:sprite});
+
+let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null,explicitCaptionUntil=0;
 let pointerStart=null,pointerMoved=false,petPosition=50,lastClutterHuff=0,lastWander=0;
 const captions={
  idle:["The department of disapproval remains operational.","A perfectly adequate amount of nothing.","Monitoring the room. Against my better judgment."],
@@ -36,12 +43,19 @@ function applySettings(){
  byId("quietToggle").checked=preferences.quiet;
  byId("motionToggle").checked=preferences.reducedMotion;
  byId("idleSelect").value=String(preferences.idleSeconds);
+ spritePreview.setReducedMotion(preferences.reducedMotion);
 }
-function speak(msg,force=false){if(preferences.quiet&&!force)return;if(msg!==lastCaption){thought.textContent=msg;lastCaption=msg}}
+function speak(msg,force=false){
+ const now=Date.now();
+ if(preferences.quiet&&!force)return;
+ if(!force&&now<explicitCaptionUntil)return;
+ if(force)explicitCaptionUntil=now+2400;
+ if(msg!==lastCaption){thought.textContent=msg;lastCaption=msg;}
+}
 function huffSound(){audio.play("huff")}
 function reaction(state,priority=80,duration=1600,message){
  const now=Date.now();bus.publish(state,priority,duration,now);lastActivity=now;manualNap=false;
- if(message)speak(message,true);
+ if(message)speak(remarks.choose(state,message,now),true);
  byId("napLabel").textContent="Nap";
  if(state==="huffing")huffSound();
  tick();
@@ -53,22 +67,25 @@ function keyWindow(now=Date.now()){
 }
 function tick(){
  const now=Date.now(),date=new Date(now),night=date.getHours()>=23||date.getHours()<6;
+ scene.dataset.light=lightBand(date.getHours());
  const keys=keyWindow(now);
  const context={now,lastActivity,idleMs:preferences.idleSeconds*1000,typingKeys:keys,night,manualNap,visible:document.visibilityState!=="hidden"};
  let next=effectiveState(bus,context);
  if(!manualNap&&bus.current(now)===null){
    if(keys>=24) next="judging";
-   else {
+   else if(attentionBudget.eligible({now,visible:context.visible,quiet:preferences.quiet,sleeping:next==="sleeping"||next==="resting",deskOpen:!deskPanel.hidden,settingsOpen:settingsDialog.open,reducedMotion:preferences.reducedMotion})){
      const routine=chooseAmbientRoutine({state:next,idleMs:now-lastActivity,now,lastRoutineAt:lastWander,visible:context.visible,manualNap,deskOpen:!deskPanel.hidden});
-     if(routine){bus.publish(routine.state,12,routine.ttlMs,now);lastWander=now;next=routine.state;}
+     if(routine&&attentionBudget.record(now)){bus.publish(routine.state,12,routine.ttlMs,now);lastWander=now;next=routine.state;}
    }
  }
  if(next!==lastState){
   renderState(next,{pet,sprite,stateLabel,sceneCaption},lastState);
+  scene.dataset.mood=next;
   lastState=next;
   const options=captions[next];const choice=options[Math.floor(Math.random()*options.length)];
   speak(choice);
  }
+ spritePreview.setState(next);
  byId("clock").textContent=date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
 }
 function openDesk(){deskPanel.hidden=false;lastActivity=Date.now();typingInput.focus();speak("Your text stays here, briefly.",true)}
@@ -105,7 +122,30 @@ byId("soundToggle").addEventListener("change",event=>{preferences.sound=event.ta
 byId("quietToggle").addEventListener("change",event=>{preferences.quiet=event.target.checked;saveSettings()});
 byId("motionToggle").addEventListener("change",event=>{preferences.reducedMotion=event.target.checked;applySettings();saveSettings()});
 byId("idleSelect").addEventListener("change",event=>{preferences.idleSeconds=Number(event.target.value);saveSettings();tick()});
-byId("resetSettings").addEventListener("click",()=>{preferences={...defaults};resetSettings(localPreferences);applySettings();speak("Settings have been returned to reason.",true);tick()});
+byId("resetSettings").addEventListener("click",()=>{
+ preferences={...defaults};resetSettings(localPreferences);applySettings();
+ byId("atlasPreviewToggle").checked=false;byId("atlasClipControl").hidden=true;
+ spritePreview.deactivate();byId("atlasStatus").textContent="Preview off · original artwork retained.";
+ speak("Settings have been returned to reason.",true);tick();
+});
+byId("atlasPreviewToggle").addEventListener("change",async event=>{
+ if(!event.target.checked){
+  spritePreview.deactivate();byId("atlasClipControl").hidden=true;
+  byId("atlasStatus").textContent="Preview off · original artwork retained.";return;
+ }
+ byId("atlasStatus").textContent="Loading unapproved sprite candidate…";
+ try{
+  const enabled=await spritePreview.activate();
+  if(enabled&&event.target.checked){
+   byId("atlasClipControl").hidden=false;
+   byId("atlasStatus").textContent="Candidate only · not approved visual canon.";
+  }
+ }catch{
+  event.target.checked=false;byId("atlasClipControl").hidden=true;
+  byId("atlasStatus").textContent="Atlas unavailable; original 96px Dexter restored.";
+ }
+});
+byId("atlasClipSelect").addEventListener("change",event=>spritePreview.setClip(event.target.value));
 function updateClutter(){
  byId("tabCount").textContent=String(simulatedTabs);
  const now=Date.now();
@@ -128,26 +168,50 @@ pet.addEventListener("pointermove",event=>{
  if(!pointerStart)return;
  const delta=event.clientX-pointerStart.x,vertical=event.clientY-pointerStart.y;
  if(Math.abs(delta)>6||Math.abs(vertical)>6)pointerMoved=true;
- if(pointerMoved){petPosition=draggedPosition(pointerStart.position,delta,scene.clientWidth);pet.style.left=petPosition+"%"}
+ if(pointerMoved){petPosition=draggedPosition(pointerStart.position,delta,scene.clientWidth,pet.clientWidth);pet.style.left=petPosition+"%"}
 });
 pet.addEventListener("pointerup",event=>{
  if(!pointerStart)return;pointerStart=null;lastActivity=Date.now();
- if(!pointerMoved)reaction("watching",70,1600,"Personal space is a concept.");
- else{byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";bus.publish("judging",30,1100);speak("Reassigned. Without consultation.",true);tick()}
+ if(!pointerMoved){
+  const count=pokeRhythm.tap();
+  if(count>=3)reaction("huffing",86,1700,"Repeated poking. The complaint is formal.");
+  else if(count===2)reaction("judging",78,1400,"An additional inquiry. Noted.");
+  else reaction("watching",70,1600,"Personal space is a concept.");
+ }
+ else{pokeRhythm.reset();byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";bus.publish("judging",30,1100);speak("Reassigned. Without consultation.",true);tick()}
 });
-pet.addEventListener("pointercancel",()=>{pointerStart=null;pointerMoved=false});
+pet.addEventListener("pointercancel",()=>{pointerStart=null;pointerMoved=false;pokeRhythm.reset()});
 pet.addEventListener("keydown",event=>{
  if(event.altKey||event.ctrlKey||event.metaKey||event.isComposing)return;
  if(["ArrowLeft","ArrowRight","Home"].includes(event.key)){
-   event.preventDefault();petPosition=keyboardPosition(petPosition,event.key);
+   event.preventDefault();petPosition=keyboardPosition(petPosition,event.key,scene.clientWidth,pet.clientWidth);
    pet.style.left=petPosition+"%";
    byId("petPositionStatus").textContent="Dexter moved to "+Math.round(petPosition)+" percent of the habitat.";
    lastActivity=Date.now();tick();return;
  }
  if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}
 });
-scene.addEventListener("pointermove",()=>{lastActivity=Date.now()},{passive:true});
-document.addEventListener("visibilitychange",()=>{if(document.hidden)audio.suspend();tick();});
+function constrainPetPosition(){
+ petPosition=safePosition(petPosition,scene.getBoundingClientRect().width,pet.getBoundingClientRect().width);
+ pet.style.left=petPosition+"%";
+}
+const positionObserver=typeof ResizeObserver==="function"?new ResizeObserver(constrainPetPosition):null;
+positionObserver?.observe(scene);positionObserver?.observe(pet);
+window.addEventListener("resize",constrainPetPosition);
+scene.addEventListener("pointermove",event=>{
+ lastActivity=Date.now();
+ if(pointerStart||document.hidden||preferences.quiet||!deskPanel.hidden||settingsDialog.open)return;
+ const bounds=pet.getBoundingClientRect();
+ const near=event.clientX>=bounds.left-30&&event.clientX<=bounds.right+30&&event.clientY>=bounds.top-30&&event.clientY<=bounds.bottom+30;
+ const signal=pointerPresence.observe({x:event.clientX,y:event.clientY,now:event.timeStamp,near,allowed:true});
+ if(signal){bus.publish(signal.state,signal.priority,signal.durationMs);tick();}
+},{passive:true});
+document.addEventListener("visibilitychange",()=>{
+ const visible=!document.hidden;
+ spritePreview.setVisible(visible);
+ if(!visible){bus.clear();remarks.reset();pointerPresence.reset();pokeRhythm.reset();audio.suspend();}
+ tick();
+});
 window.addEventListener("online",()=>{byId("connectionText").textContent="LOCAL";tick()});
 window.addEventListener("offline",()=>{byId("connectionText").textContent="OFFLINE";tick()});
 window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;byId("installButton").hidden=false});
@@ -159,4 +223,4 @@ if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname
 applySettings();keyWindow();tick();
 let ticker=setInterval(tick,1100);
 document.addEventListener("visibilitychange",()=>{clearInterval(ticker);ticker=setInterval(tick,document.hidden?15000:1100);});
-window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);audio.dispose();});
+window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);positionObserver?.disconnect();window.removeEventListener("resize",constrainPetPosition);spritePreview.dispose();audio.dispose();});

@@ -5,11 +5,11 @@ import {fileURLToPath} from "node:url";
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
 const dist=join(root,"dist");
 const files=["index.html","styles.css","app.js","sw.js","manifest.webmanifest",
- "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs","src/interaction.mjs",
- "assets/dexter-sit-96.png","assets/dexter-stand-96.png","assets/dexter-rest-96.png",
+ "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs","src/interaction.mjs","src/remarks.mjs","src/attention.mjs","src/presence.mjs","src/animation.mjs",
+ "assets/dexter-sit-96.png","assets/dexter-stand-96.png","assets/dexter-rest-96.png","assets/dexter-snes-32-candidate.png",
  "icons/icon-192.png","icons/icon-512.png"];
 const sizes={"assets/dexter-sit-96.png":96,"assets/dexter-stand-96.png":96,"assets/dexter-rest-96.png":96,
- "icons/icon-192.png":192,"icons/icon-512.png":512};
+ "icons/icon-192.png":192,"icons/icon-512.png":512,"assets/dexter-snes-32-candidate.png":[192,160]};
 const budget=2*1024*1024;
 const entries=[];
 let total=0;
@@ -19,7 +19,7 @@ for(const path of files) {
  if(sizes[path]){
   if(bytes.length<24||bytes.subarray(0,8).toString("hex")!=="89504e470d0a1a0a"||
     bytes.toString("ascii",12,16)!=="IHDR"||
-    bytes.readUInt32BE(16)!==sizes[path]||bytes.readUInt32BE(20)!==sizes[path])
+    bytes.readUInt32BE(16)!==(Array.isArray(sizes[path])?sizes[path][0]:sizes[path])||bytes.readUInt32BE(20)!==(Array.isArray(sizes[path])?sizes[path][1]:sizes[path]))
    throw Error("PNG missing or wrong dimensions: "+path);
  }
  total+=bytes.length;
