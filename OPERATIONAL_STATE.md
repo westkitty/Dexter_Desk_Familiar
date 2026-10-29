@@ -32,3 +32,14 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Baseline already contained three 96px images. Source/user-approved visual fidelity at 1x/2x/3x is **unknown**. Seven-state 32px atlas and complete animation sheet remain **pending**.
 - Node/real-browser/Safari/offline/release tests on the branch remain **unverified** pending execution; do not claim v1.0 readiness.
 - No native overlay, public deployment, release tag, sibling-project changes, or external sensing authorized or performed.
+
+## 2026-10-28/29 — Verified merges and deployment checkpoint
+
+- User explicitly authorized merge/push, public GitHub Pages website activation, and continued web/PWA development. This supersedes the earlier prohibition on public hosting for this project only; **source repository privacy remains protected**.
+- Verified merged PRs: #1 foundation, #2 audited Pages release harness, #3 keyboard parity plus real-browser smoke.
+- Verified app commit: `d41e7dfdfeb7ddc0f38192cc3240249bfdd03594` on `main`. Source/build checks PASS: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40811822849
+- Cloud Chromium runtime: 4/4 tests PASS at exact merge commit: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40811822859 (direct actions, nap, text privacy, keyboard/mobile, offline reload).
+- `npm run build` produces only the audited `dist/` static assets (17 source items plus .nojekyll and integrity report). Browser-tested original art remains the provisional three-pose sprites, **not a visual/canonical release approval**.
+- GitHub Pages status: **BLOCKED/NOT ACTIVE**. Workflow deployment failed at `actions/configure-pages` because the repository has no enabled Pages site (404): https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/40811823061. The necessary authenticated MacBook CLI mutation was prevented before execution by DEX//REACH resource scheduling; do not claim Pages setup happened. Next permitted step: activate the existing private repo Pages source as GitHub Actions via an authorized healthy account context, then rerun deployment and check HTTPS.
+- Outstanding: final approved 96×96 and separate 32×32 Dexter animation atlas, Safari/manual touch/assistive technology tests, one-hour performance/long-session measurement, public site network proof, distribution ZIP/versioned release gate. Native overlay still NOT authorized.
+- Protection: preserve local-only input observation and preferences-only storage, no monitoring outside window, no external runtime services, no cross-project writes, private source repository. Public GitHub Pages host will necessarily serve static assets over HTTPS.
