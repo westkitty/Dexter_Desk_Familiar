@@ -25,3 +25,9 @@ test("publish with same priority resolves newest first and expiry has no stuck s
  const bus=new FamiliarBus();bus.publish("idle",5,10,100);bus.publish("huffing",5,20,100);
  assert.equal(bus.current(109),"huffing");assert.equal(bus.current(120),null);
 });
+
+test("hidden window cannot reveal stale priority signals",()=>{
+ const bus=new FamiliarBus();bus.publish("huffing",100,1500,100);
+ assert.equal(effectiveState(bus,{now:200,visible:false,manualNap:false}),"sleeping");
+ assert.equal(effectiveState(bus,{now:200,visible:true,manualNap:false}),"huffing");
+});

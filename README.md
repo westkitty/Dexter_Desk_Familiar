@@ -2,7 +2,7 @@
 
 A small, opinionated, privacy-first browser familiar starring **Dexter**. Three reference-derived pixel poses and a semantic behavior engine. He is present first; the UI stays secondary.
 
-**Status:** v0.2.x working browser/PWA foundation, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
+**Status:** v0.3 implementation candidate, tested with staged source and browser verification, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
 
 ## Run locally
 
@@ -55,3 +55,14 @@ See \`docs/PRODUCT_BLUEPRINT.md\` and \`docs/WESTCAT_LINEAGE.md\`. Keep the app 
 Run `npm run check` to verify the allowlisted public bundle. Only the contents of `dist/` may be deployed via the main-only GitHub Pages workflow. `docs/PAGES_DEPLOYMENT.md` documents setup and the private-source boundary. Cloud Chromium smoke tests are kept out of the runtime bundle, and may be run with `npx playwright test` after installing the test tooling. An installation, offline, Safari and final character-likeness release gate still remain.
 
 Focused Dexter supports Left/Right arrow keys to reposition in 5% increments and Home to re-center; pointer drag is also supported. The typing desk erases text when closed or when the page is left.
+
+## v0.3: Reused systems, not imported runtimes
+
+The main pixel Dexter stays the reference-derived 96px three-pose familiar.
+Settings offers an **off-by-default, session-only, explicitly unapproved** 32px atlas preview. It uses unmodified pixels from `westkitty/SNES_Dex/original/dexter_sprites.png`. Five authored rows support idle, walking, sniffing, barking, and an unimpressed reaction; eating and sleep still use the existing 96px art. Animation preview can be disabled at any time, and reduced motion holds the first frame.
+
+A lightweight local presence observer distinguishes brief pointer approach, stationary dwell, and repeated deliberate taps **inside this page only**. No cursor tracking outside the habitat, telemetry, background service or persistent interaction history. An independent attention budget caps ambient routines at three per rolling hour, requires four minutes between them, and suppresses them while quiet, hidden, sleeping, in the typing desk or settings, or reduced motion.
+
+The service worker retains the tested no-forced-activation, complete-cache-before-purge and app-scoped-cache protections from the newer `main`. The old uplift branch's service worker was **not** merged; useful behavior was reapplied on top of those protections.
+
+See `docs/ATLAS_CANDIDATE.md` for pixel provenance and approval boundaries. These assets are not promoted to canonical art until the user has approved them.

@@ -69,3 +69,56 @@ test("offline reload serves cached app with no network",async({page,context})=>{
    await expect(page.locator("#stateLabel")).toBeVisible();
  }finally{await context.setOffline(false);}
 });
+
+test("candidate atlas is opt-in and returns to 96px fallback for nap",async({page})=>{
+ await page.goto("/");
+ const canvas=page.locator("#atlasCanvas"),fallback=page.locator("#sprite");
+ await expect(canvas).toBeHidden();await expect(fallback).toBeVisible();
+ await page.getByRole("button",{name:"Settings"}).click();
+ await page.locator("#atlasPreviewToggle").check();
+ await expect(page.locator("#atlasStatus")).toContainText("Candidate only");
+ await page.locator("#doneSettings").click();
+ await expect(canvas).toBeVisible();await expect(fallback).toBeHidden();
+ await page.getByRole("button",{name:"Nap"}).click();
+ await expect(canvas).toBeHidden();await expect(fallback).toBeVisible();
+ await page.getByRole("button",{name:"Settings"}).click();
+ await page.locator("#atlasPreviewToggle").uncheck();
+ await expect(page.locator("#atlasClipControl")).toBeHidden();
+ await expect(fallback).toBeVisible();
+});
+test("three direct taps escalate without touching other windows or saving activity",async({page})=>{
+ await page.goto("/");
+ const pet=page.locator("#pet");
+ await pet.click();await pet.click();await pet.click();
+ await expect(page.locator("#stateLabel")).toHaveText("DISAPPROVING");
+ await expect(page.locator("#thought")).toContainText("Repeated poking");
+ const contents=await page.evaluate(()=>Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)])));
+ expect(JSON.stringify(contents)).not.toContain("poking");
+});
+test("narrow viewport keeps Dexter fully visible and clock light is local",async({page})=>{
+ await page.goto("/");
+ const pet=page.locator("#pet");await pet.focus();
+ for(let i=0;i<9;i++)await pet.press("ArrowRight");
+ await page.setViewportSize({width:320,height:670});
+ const result=await page.evaluate(()=>{
+  const rect=document.querySelector("#pet").getBoundingClientRect();
+  return {left:rect.left,right:rect.right,light:document.querySelector("#scene").dataset.light};
+ });
+ expect(result.left).toBeGreaterThanOrEqual(6);
+ expect(result.right).toBeLessThanOrEqual(314);
+ expect(["morning","day","evening","night"]).toContain(result.light);
+});
+test("sprite atlas preview remains available after an offline reload",async({page,context})=>{
+ await page.goto("/");
+ await page.evaluate(()=>navigator.serviceWorker.ready);
+ await page.reload();
+ await context.setOffline(true);
+ try{
+  await page.reload({waitUntil:"domcontentloaded"});
+  await page.getByRole("button",{name:"Settings"}).click();
+  await page.locator("#atlasPreviewToggle").check();
+  await expect(page.locator("#atlasStatus")).toContainText("Candidate only");
+  await page.locator("#doneSettings").click();
+  await expect(page.locator("#atlasCanvas")).toBeVisible();
+ }finally{await context.setOffline(false);}
+});

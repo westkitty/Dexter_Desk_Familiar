@@ -47,3 +47,9 @@ No new runtime dependencies, third-party assets, personal input recording, exten
 - **Not yet proven:** real interrupted upgrade with two successive service-worker revisions and browser shutdown/reopen; service-worker update notification UX; manual Safari install/update; long-session soak; final 32px/96px visual approval; live Pages activation. Browser success is not proof of these gates.
 - GitHub Actions screenshot upload failed during earlier red runs because Actions artifact storage quota was exceeded; no artifacts were deleted and those optional uploads do not invalidate the observed test failures.
 - Scope preserved: no third-party runtime assets, monitoring outside Dexter's page, native shell, changes to WESTCAT repositories, or changes to `main`.
+
+## Candidate integration, 2026-10-29 — pending source and browser proof
+
+Cross-repository features staged separately from the old `uplift/presence-cadence-20261029` branch to protect subsequent merged PNG and offline lifecycle fixes. Exact-source provenance of the original `SNES_Dex` candidate asset: Git blob `ee2e34f8c773e03846ce2800280328f3464a9603`. The option to preview is off by default and does not grant visual canon approval.
+
+Before marking verified: exact-head Node CI, complete-cache atomic install and rollback tests, locally served Chromium and WebKit interaction tests, absence of offsite application requests, resource budget, and unchanged original 96px fallback. No claim of actual Safari/macOS runtime testing.

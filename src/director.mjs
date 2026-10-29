@@ -6,3 +6,12 @@ export function chooseAmbientRoutine({state,idleMs=0,now,lastRoutineAt=0,random=
   if(!Number.isFinite(chance)||chance<0||chance>=0.22) return null;
   return {state:"wandering",ttlMs:2900};
 }
+
+// Only the current browser clock hour; no location, history or device observation.
+export function lightBand(hour){
+ if(!Number.isInteger(hour)||hour<0||hour>23)return "day";
+ if(hour>=6&&hour<11)return "morning";
+ if(hour>=11&&hour<18)return "day";
+ if(hour>=18&&hour<22)return "evening";
+ return "night";
+}

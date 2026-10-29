@@ -16,3 +16,13 @@ test("keyboard moves in 5 percent increments with Home reset",()=>{
  assert.equal(keyboardPosition(75,"Home"),50);
  assert.equal(keyboardPosition(50,"Other"),50);
 });
+
+test("mobile bounds keep the complete Dexter image inside the stage",()=>{
+ const w=320,pet=201;
+ for(const x of [0,15,50,85,100]){
+  const at=keyboardPosition(x,"ArrowRight",w,pet);
+  assert.ok(at/100*w+pet/2<=w-8+.02);
+  assert.ok(at/100*w-pet/2>=8-.02);
+ }
+ assert.equal(draggedPosition(50,1000,w,pet),keyboardPosition(85,"ArrowRight",w,pet));
+});

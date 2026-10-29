@@ -11,7 +11,8 @@ const assets=[
   ["assets/dexter-sit-96.png",96,true],
   ["assets/dexter-stand-96.png",96,true],
   ["icons/icon-192.png",192,false],
-  ["icons/icon-512.png",512,false]
+  ["icons/icon-512.png",512,false],
+  ["assets/dexter-snes-32-candidate.png",[192,160],false]
 ];
 function crc32(bytes,start,end){
   let crc=0xffffffff;
@@ -57,8 +58,8 @@ for(const [path,expectedSize,needsTransparency] of assets){
   test(path+" has valid PNG chunks and full terminator",async()=>{
     const bytes=await readFile(join(root,path));
     const png=inspectPng(bytes,path);
-    assert.equal(png.width,expectedSize,path+": width");
-    assert.equal(png.height,expectedSize,path+": height");
+    assert.equal(png.width,Array.isArray(expectedSize)?expectedSize[0]:expectedSize,path+": width");
+    assert.equal(png.height,Array.isArray(expectedSize)?expectedSize[1]:expectedSize,path+": height");
     if(needsTransparency) assert.equal(png.hasTransparency,true,path+": sprite must support transparency");
   });
 }

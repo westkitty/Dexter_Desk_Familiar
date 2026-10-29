@@ -29,6 +29,7 @@
       <div class="sprite-wrap" id="pet" role="button" tabindex="0" aria-label="Dexter. Drag to reposition, use left and right arrows or Home to move, Enter or Space to interact." aria-keyshortcuts="ArrowLeft ArrowRight Home Enter Space" data-state="idle">
         <span class="sprite-shadow" aria-hidden="true"></span>
         <img id="sprite" class="sprite" src="./assets/dexter-sit-96.png" alt="Pixel portrait of Dexter: floppy black ears, tan eyebrows, cream ruff, narrow eyes, scowl, and curled tail" draggable="false" width="96" height="96">
+        <canvas id="atlasCanvas" class="atlas-canvas" width="32" height="32" hidden aria-hidden="true"></canvas>
         <span class="puff" aria-hidden="true">hff.</span>
         <span class="sleeping-marks" aria-hidden="true">z<span>z</span><span>z</span></span>
         <span class="treat-stars" aria-hidden="true">✦</span>
@@ -62,6 +63,9 @@
     <label class="setting"><span><strong>Enable tiny sounds</strong><small>Off by default. Generated locally after a click.</small></span><input type="checkbox" id="soundToggle"></label>
     <label class="setting"><span><strong>Quiet presence</strong><small>No unsolicited remarks. Actions still work.</small></span><input type="checkbox" id="quietToggle"></label>
     <label class="setting"><span><strong>Reduced motion</strong><small>Keep distinct poses, suppress extra movement.</small></span><input type="checkbox" id="motionToggle"></label>
+    <label class="setting"><span><strong>Preview 32px Dexter animation</strong><small>Unapproved SNES_Dex candidate. Off by default; the 96px portrait is preserved.</small></span><input type="checkbox" id="atlasPreviewToggle"></label>
+    <label class="setting" id="atlasClipControl" hidden><span><strong>Preview animation</strong><small>Follow state or inspect an original clip; never changes the default art.</small></span><select id="atlasClipSelect"><option value="auto">Follow state</option><option value="idle">Idle</option><option value="walk">Walk</option><option value="sniff">Sniff</option><option value="bark">Bark</option><option value="unimpressed">Unimpressed</option></select></label>
+    <output class="atlas-status" id="atlasStatus" aria-live="polite">Preview off · original artwork retained.</output>
     <label class="setting"><span><strong>Idle before resting</strong><small>Activity inside this page only.</small></span><select id="idleSelect"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
     <div class="setting clutter-setting"><span><strong>Make-believe tab pile</strong><small>A local simulation. Dexter cannot see your actual browser tabs.</small></span><div class="counter"><button type="button" id="removeTab" aria-label="Remove simulated tab">−</button><output id="tabCount">0</output><button type="button" id="addTab" aria-label="Add simulated tab">+</button></div></div>
     <div class="privacy-card"><strong>Privacy, without mythology.</strong><p>No analytics, accounts, recordings, transmitted text, extension permissions or third-party scripts. Only your preferences use localStorage. Offline application files are stored in the browser's service-worker cache. Browser-managed update checks may still contact the app's original host.</p></div>
