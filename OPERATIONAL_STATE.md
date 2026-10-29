@@ -24,3 +24,11 @@ At initialization: repository creation verified; source/asset check and Node/bro
 
 ## Protected invariants
 Do not add global monitoring, network-based intelligence, host polling, extension permissions, history logging, background desktop access, monetization, analytics, AI theater, or an always-on-top claim without new explicit authority. Do not overwrite supplied visual identity with generic animal sprites.
+
+## 2026-10-28 — Build branch checkpoint
+- Project identity independently confirmed: private `westkitty/Dexter_Desk_Familiar`, main `60913278e40f2408ffcfe1848f7c8432ea448f42`.
+- Implementation branch: `build/pwa-foundation-20261028`.
+- Implemented-unverified: modular page-only key classification; deterministic low-priority ambient director; settings validation; renderer; opt-in audio; manual nap label alignment; service-worker cache update.
+- Baseline already contained three 96px images. Source/user-approved visual fidelity at 1x/2x/3x is **unknown**. Seven-state 32px atlas and complete animation sheet remain **pending**.
+- Node/real-browser/Safari/offline/release tests on the branch remain **unverified** pending execution; do not claim v1.0 readiness.
+- No native overlay, public deployment, release tag, sibling-project changes, or external sensing authorized or performed.

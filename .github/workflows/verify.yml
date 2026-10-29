@@ -1,7 +1,7 @@
 name: Verify Dexter Desk Familiar
 on:
   push:
-    branches: [main]
+    branches: [main, 'build/**']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -9,22 +9,31 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run behavior tests
-        run: npm test
+      - name: Validate JavaScript and run unit suite
+        run: npm run check
       - name: Check required PWA assets
         run: |
           set -eu
           for path in assets/dexter-sit-96.png assets/dexter-stand-96.png assets/dexter-rest-96.png icons/icon-192.png icons/icon-512.png; do
             test -s "$path" || { echo "::error file=$path::Required PNG missing"; exit 1; }
           done
-      - name: Static source checks
+      - name: Static import and cache contract
         run: |
-          node --check app.js
-          node --check sw.js
-          node --check dev-server.mjs
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const app=fs.readFileSync("app.js","utf8");
+            const sw=fs.readFileSync("sw.js","utf8");
+            const server=fs.readFileSync("dev-server.mjs","utf8");
+            for(const path of ["behavior","observations","director","renderer","audio","settings"]){
+              if(!app.includes("./src/"+path+".mjs"))throw Error("App import missing "+path);
+              if(!sw.includes("./src/"+path+".mjs"))throw Error("Offline cache missing "+path);
+              if(!server.includes("/src/"+path+".mjs"))throw Error("Local server missing "+path);
+            }
+            if(/https?:\/\//.test(app))throw Error("unexpected external URL");
+          '
