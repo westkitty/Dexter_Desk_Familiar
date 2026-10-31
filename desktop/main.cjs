@@ -75,6 +75,9 @@ function contextMenu() {
       {label:'Accepted cel animations', type:'radio',checked:settings.art==='cel',click:()=>setArt('cel')},
       {label:'Candidate SNES atlas (unapproved)',type:'radio',checked:settings.art==='atlas',click:()=>setArt('atlas')}
     ]},
+    {label:'Flip Dexter',type:'checkbox',checked:settings.flipped,click:()=>{
+      settings.flipped=!settings.flipped;emit('flip');scheduleSave();refreshMenu();
+    }},
     {label:'Size',submenu:Object.keys(require('./window-state.cjs').SIZES).map(size=>({
       label:size[0].toUpperCase()+size.slice(1),type:'radio',checked:settings.size===size,click:()=>{
         settings.size=size;placeWindow();scheduleSave();refreshMenu();
@@ -96,7 +99,11 @@ function contextMenu() {
     }},
     {type:'separator'},
     {label:'Reset position',click:()=>{settings.x=null;settings.y=null;placeWindow();scheduleSave();}},
-    {label:'Show Dexter',click:()=>{passThrough=false;overPet=true;win.show();setIgnore();win.focus();}},
+    {label:win?.isVisible()?'Hide Dexter':'Show Dexter',click:()=>{
+      if(win?.isVisible())win.hide();
+      else{passThrough=false;overPet=true;win.show();setIgnore();win.focus();}
+      refreshMenu();
+    }},
     {label:'Quit Dexter',click:()=>app.quit()}
   ]);
 }
@@ -128,6 +135,7 @@ function createWindow() {
   win.webContents.on('did-finish-load',()=>{
     win.webContents.executeJavaScript('document.body.dataset.desktop = "true"').catch(()=>{});
     if(settings.art!=='pixel') emit(settings.art);
+    if(settings.flipped) emit('flip');
   });
   win.loadURL('dexter://app/index.html').catch(error=>dialog.showErrorBox('Dexter cannot start',error.message));
   win.once('ready-to-show',()=>{win.showInactive();setIgnore();});
@@ -294,7 +302,7 @@ app.whenReady().then(()=>{
   const image=nativeImage.createFromPath(path.join(ROOT,'icons','icon-192.png'));
   tray=new Tray(image.isEmpty()?nativeImage.createEmpty():image.resize({width:18,height:18}));
   tray.setToolTip('Dexter Desk Familiar');
-  tray.on('click',()=>{passThrough=false;overPet=true;win.show();setIgnore();});
+  tray.on('click',()=>{passThrough=false;overPet=true;win.show();setIgnore();refreshMenu();});
   refreshMenu();
 });
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
