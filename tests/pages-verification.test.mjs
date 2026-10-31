@@ -8,10 +8,10 @@ const digest=createHash("sha256").update(bytes).digest("hex");
 const manifest={sourceCommit:sha,totalBytes:bytes.length*10,files:Array.from({length:10},(_,i)=>({
  path:"src/test"+i+".mjs",bytes:bytes.length,sha256:digest
 }))};
-function fixture({corrupt=false,revision=sha,docStatus=404}={}){
+function fixture({corrupt=false,revision=sha,docStatus=404,files=manifest.files}={}){
  return async url=>{
   const path=new URL(url).pathname.split("/").pop();
-  if(path==="release-manifest.json")return new Response(JSON.stringify({...manifest,sourceCommit:revision}),{status:200});
+  if(path==="release-manifest.json")return new Response(JSON.stringify({...manifest,sourceCommit:revision,files,totalBytes:bytes.length*files.length}),{status:200});
   if(path==="README.md"||path==="OPERATIONAL_STATE.md")return new Response("",{status:docStatus});
   return new Response(corrupt?"bad bytes":bytes,{status:200});
  };
@@ -30,4 +30,20 @@ test("tampered asset and accidentally hosted docs fail the delivery gate",async(
 });
 test("public proof never follows a user-controlled or untrusted Pages URL",async()=>{
  await assert.rejects(verifyPublished({siteUrl:"https://example.com/",expectedCommit:sha,fetchImpl:fixture()}),/Unexpected Pages/);
+});
+
+test("nested approved WebM clips and poster PNGs pass public verification",async()=>{
+ const files=[...manifest.files,
+  {path:"assets/cel-shaded/clips/sleep_loop.webm",bytes:bytes.length,sha256:digest},
+  {path:"assets/cel-shaded/posters/stretch_start.png",bytes:bytes.length,sha256:digest}];
+ const result=await verifyPublished({expectedCommit:sha,fetchImpl:fixture({files}),retries:1});
+ assert.equal(result.verifiedFiles,12);
+ assert.equal(result.totalBytes,bytes.length*12);
+});
+test("unapproved paths, traversal and formats remain blocked",async()=>{
+ for(const path of ["assets/../outside.webm","assets/cel-shaded/clips/../../../private.webm",
+  "assets/cel-shaded/clips/extra/deeper.webm","https://elsewhere.invalid/x.webm","assets/cel-shaded/clips/script.svg"]){
+  const files=[...manifest.files,{path,bytes:bytes.length,sha256:digest}];
+  await assert.rejects(verifyPublished({expectedCommit:sha,fetchImpl:fixture({files}),retries:1}),/Invalid public file declaration/,path);
+ }
 });

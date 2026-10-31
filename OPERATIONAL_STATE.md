@@ -104,3 +104,10 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Release structure: 36 allowlisted static files, cache v6, 2 MiB budget preserved; package preview metadata 0.4.0-preview.1. Default app is unchanged when option is off.
 - Validation: local Big Mac 58 pre-change unit PASS, 6 new owner-asset/state-controller tests PASS, release tests PASS. Chromium final 18 PASS + 1 WebKit-specific SKIP (includes all eight actual alpha-video decodes and lie-down-to-sleep playback); WebKit final 16 PASS + 3 Chromium-only SKIP. No browser failures. Any additional tests and exact feature-branch commit status are recorded separately on completion.
 - Still pending: native physical Safari/mobile and accessibility QA, performance/long-session, real two-version offline service-worker upgrade/rollback, GitHub exact-commit CI, final deployment authorization. Feature is NOT a replacement for existing canonical pixel art.
+
+## 2026-10-31 — Pages verifier hotfix following approved animation deployment
+
+- PR #8 merged to public main at `e9eed54e4932f19c211199502c61c77fe2b1dbfa`; the Pages deployment action reported success, but post-deployment verification failed in run 41214820461 with `Invalid public file declaration`.
+- Confirmed cause: `scripts/verify-pages.mjs` still enforced the older flat-path PNG-only manifest rule. The new release intentionally includes owner-approved nested `assets/cel-shaded/clips/*.webm` and poster PNG files, which the builder and release tests allow.
+- Narrow repair: align published-file validation with the release allowlist, retaining SHA-256, byte-size, origin/path, traversal, and excluded-document checks. Add nested WebM/poster and invalid-path regression fixtures.
+- Production verification is pending the exact-commit Pages workflow for this repair. Do not claim it succeeded based on the deploy action alone. Preserve the pixel-art default, offline requirements, privacy boundary, and eight approved clip bytes.

@@ -45,7 +45,7 @@ export async function verifyPublished({
  const paths=new Set();
  for(const file of manifest.files){
   if(typeof file.path!=="string"||
-     !/^(?:(?:src|assets|icons)\/)?[a-zA-Z0-9_-]+\.(?:html|css|js|mjs|png|webmanifest)$/.test(file.path)||
+     !/^(?:(?:src|assets|icons)(?:\/[a-zA-Z0-9_-]+){0,2}\/)?[a-zA-Z0-9_-]+\.(?:html|css|js|mjs|png|webmanifest|webm)$/.test(file.path)||
      paths.has(file.path)||!/^[0-9a-f]{64}$/i.test(file.sha256)||
      !Number.isInteger(file.bytes)||file.bytes<=0)
     throw Error("Invalid public file declaration");

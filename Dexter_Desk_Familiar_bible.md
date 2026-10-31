@@ -35,3 +35,9 @@ This additive ledger records significant implementation decisions. It does not o
 - Runtime route: opt-in, session-only cel-shaded mode; 96px pixel portraits remain default; independent opt-in 32px atlas cannot overlap. Original source pixels must not be rewritten, stretched or replaced.
 - Behavior law: motion tied to explicit local semantic state; no outside-page sensing, no new persistent data, no third-party media fetches, no audio autoplay. When transparency is unsupported, display approved still artwork rather than an opaque matte.
 - Approval does not waive real-browser, offline upgrade, accessible/reduced-motion, mobile/Safari and performance checks. Do not treat artistically approved sit-down end geometry as objectively identical to the 96px pixel pose.
+
+## 2026-10-31 — PR #8 release verifier correction
+
+- User expressly authorized merge and GitHub Pages deployment of the approved eight-clip cel-shaded mode. PR #8 merged into `main` at `e9eed54e4932f19c211199502c61c77fe2b1dbfa`.
+- Initial Pages upload/deploy succeeded but the last public-byte verification rejected legitimate nested `.webm` paths: run `41214820461`. The verifier was out of sync with the release builder, not the clip artifacts.
+- The bounded verifier correction maintains strict same-origin, filename, content-hash, total-size, and excluded-file checks while accepting approved nested media paths. Final public deployment truth must come from the hotfix run and independent HTTPS evidence, not from this planning record.
