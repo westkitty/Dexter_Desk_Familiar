@@ -19,13 +19,19 @@ jobs:
           node-version: '22'
       - name: Install desktop dependencies
         working-directory: desktop
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Static and deterministic tests
         working-directory: desktop
         run: npm run check
       - name: Build unsigned arm64 .app
         working-directory: desktop
         run: npm run package:mac
+      - name: Run actual macOS Electron bundle smoke
+        env:
+          DEXTER_DESKTOP_SMOKE: '1'
+        run: |
+          app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
+          "$app/Contents/MacOS/Dexter Desk Familiar"
       - name: Inspect bundle plist and executable
         run: |
           app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
