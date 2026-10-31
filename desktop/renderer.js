@@ -31,6 +31,9 @@ if (native) {
     if (name === 'pixel' || name === 'cel' || name === 'atlas') {
       setArt(name);
       hint(name === 'pixel' ? 'Original pixel Dexter.' : name === 'cel' ? 'Cel-shaded Dexter. Your decision.' : 'Candidate atlas, not canon-approved.');
+    } else if (name === 'flip') {
+      document.body.classList.toggle('desktop-flipped');
+      hint('Direction changed. Judgment unchanged.');
     } else if (name === 'quiet') {
       const setting = document.getElementById('quietToggle');
       setting.checked = !setting.checked;
