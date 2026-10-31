@@ -2,12 +2,23 @@
 const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, net} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
 const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinRoot} = require('./window-state.cjs');
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
 let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, dragVirtual = null, saveTimer;
 const SMOKE_TEST = process.env.DEXTER_DESKTOP_SMOKE === '1';
+// Runtime smoke must never use or mutate a real user's preferences or Chromium profile.
+const smokeProfile = SMOKE_TEST ? fs.mkdtempSync(path.join(os.tmpdir(),'dexter-desktop-smoke-')) : null;
+if (smokeProfile) {
+  app.setPath('userData',smokeProfile);
+  app.on('quit',()=>{
+    try {fs.rmSync(smokeProfile,{recursive:true,force:true});}
+    catch(error) {console.error('Smoke profile cleanup failed',error.message);}
+  });
+}
+
 protocol.registerSchemesAsPrivileged([{scheme:'dexter',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
 app.commandLine.appendSwitch('disable-features','MediaSessionService');
 
