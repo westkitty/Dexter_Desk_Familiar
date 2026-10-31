@@ -228,12 +228,29 @@ async function runSmokeTest() {
       throw new Error('Protocol safety or video byte range failed: '+JSON.stringify({
         denied:denied.status,range:rangeResponse.status,bytes:rangeBytes.length
       }));
+    const flipItem=contextMenu().items.find(item=>item.label==='Flip Dexter');
+    if(!flipItem)throw new Error('Flip menu missing');
+    flipItem.click();
+    await new Promise(resolve=>setTimeout(resolve,60));
+    const mirrored=await win.webContents.executeJavaScript('document.body.classList.contains("desktop-flipped")');
+    contextMenu().items.find(item=>item.label==='Flip Dexter').click();
+    await new Promise(resolve=>setTimeout(resolve,60));
+    const normal=await win.webContents.executeJavaScript('!document.body.classList.contains("desktop-flipped")');
+    win.showInactive();
+    const hideItem=contextMenu().items.find(item=>item.label==='Hide Dexter');
+    if(!hideItem)throw new Error('Hide menu missing');
+    hideItem.click();
+    const hidden=!win.isVisible();
+    tray.emit('click');
+    const recovered=win.isVisible();
+    if(!mirrored||!normal||!hidden||!recovered)
+      throw new Error('Flip or tray recovery failed: '+JSON.stringify({mirrored,normal,hidden,recovered}));
     const captured=await win.capturePage();
     const bitmap=captured.toBitmap();
     const corners=bitmap.length>=4?[bitmap[3],bitmap[bitmap.length-1]]:[];
     console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify({...report,
       dragged,startBounds,endBounds,tray:!!tray&&!tray.isDestroyed(),protocolDenied:denied.status,
-      videoRange:rangeResponse.status,rangeBytes:rangeBytes.length,screenshotAlphaCorners:corners
+      videoRange:rangeResponse.status,rangeBytes:rangeBytes.length,screenshotAlphaCorners:corners,mirrored,normal,hidden,recovered
     }));
     clearTimeout(timeout);
     app.quit();
