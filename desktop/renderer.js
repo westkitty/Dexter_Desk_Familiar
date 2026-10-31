@@ -50,26 +50,35 @@ if (native) {
     if (overPet !== lastHover) {lastHover = overPet;native.hit(overPet);}
   }, {passive:true});
   document.addEventListener('mouseleave', () => {lastHover = false;native.hit(false);});
+  // Capture window dragging without letting the original in-habitat move handlers run.
   pet.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
-    tracking = {x:event.screenX, y:event.screenY, moved:false};
+    if(event.button !== 0) return;
+    event.stopPropagation();
+    tracking={x:event.screenX,y:event.screenY,originX:event.screenX,originY:event.screenY,moved:false};
+    try{pet.setPointerCapture(event.pointerId);}catch{}
+    native.hit(true);
   });
   pet.addEventListener('pointermove', event => {
-    if (!tracking) return;
-    const dx = event.screenX - tracking.x;
-    const dy = event.screenY - tracking.y;
-    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
-    if (Math.abs(dx) + Math.abs(dy) < 1) return;
-    tracking.x = event.screenX;tracking.y = event.screenY;
-    if (Math.abs(dx) > 80 || Math.abs(dy) > 80) return;
-    tracking.moved = true;
-    native.move(dx, dy);
-  }, {passive:true});
-  function endDrag() {if (tracking) {tracking = null;native.endDrag();}}
-  pet.addEventListener('pointerup', endDrag);
-  pet.addEventListener('pointercancel', endDrag);
+    if(!tracking)return;
+    event.stopPropagation();
+    const total=Math.abs(event.screenX-tracking.originX)+Math.abs(event.screenY-tracking.originY);
+    if(!tracking.moved && total<7)return;
+    const dx=event.screenX-tracking.x,dy=event.screenY-tracking.y;
+    if(!Number.isFinite(dx)||!Number.isFinite(dy)||Math.abs(dx)>80||Math.abs(dy)>80)return;
+    tracking.x=event.screenX;tracking.y=event.screenY;tracking.moved=true;
+    native.move(dx,dy);
+  },{passive:true});
+  function endDrag(cancelled=false){
+    if(!tracking)return;
+    const wasMoved=tracking.moved;
+    tracking=null;
+    native.endDrag();
+    if(!cancelled)document.dispatchEvent(new Event(wasMoved?'dexter-desktop-moved':'dexter-desktop-poke'));
+  }
+  pet.addEventListener('pointerup', event=>{event.stopPropagation();endDrag();});
+  pet.addEventListener('pointercancel', event=>{event.stopPropagation();endDrag(true);});
   pet.addEventListener('contextmenu', event => {event.preventDefault(); native.menu();});
-  document.addEventListener('visibilitychange', () => {if(document.hidden){endDrag();native.hit(false);}});
+  document.addEventListener('visibilitychange', () => {if(document.hidden){endDrag(true);native.hit(false);}});
   // The browser version's initial slogan stays out of the tiny transparent overlay.
   document.body.classList.remove('desktop-has-thought');
 }
