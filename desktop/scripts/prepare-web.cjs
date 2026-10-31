@@ -18,8 +18,7 @@ for(const file of ['main.cjs','preload.cjs','window-state.cjs','renderer.js','ov
 }
 const htmlPath=path.join(dest,'index.html');
 let html=fs.readFileSync(htmlPath,'utf8');
-html=html.replace(/<meta http-equiv="Content-Security-Policy"[^>]+>/,
- '<meta http-equiv="Content-Security-Policy" content="default-src \'self\' file:; connect-src \'none\'; img-src \'self\' file: data:; media-src \'self\' file:; script-src \'self\' file:; style-src \'self\' file:; worker-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">');
+// Original CSP remains valid for the privileged, same-origin dexter://app scheme.
 html=html.replace('</head>','<link rel="stylesheet" href="./overlay.css"></head>');
 html=html.replace('</body>','<script defer src="./renderer.js"></script></body>');
 fs.writeFileSync(htmlPath,html);
