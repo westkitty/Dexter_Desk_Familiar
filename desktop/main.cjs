@@ -228,6 +228,37 @@ async function runSmokeTest() {
       throw new Error('Protocol safety or video byte range failed: '+JSON.stringify({
         denied:denied.status,range:rangeResponse.status,bytes:rangeBytes.length
       }));
+    // The renderer must route an opaque Dexter pixel differently from a transparent
+    // pixel *inside the same sprite rectangle*. This is an IPC smoke, not a physical mouse test.
+    const hoverCoordinates=await win.webContents.executeJavaScript(`(()=>{
+      const pet=document.getElementById('pet');
+      const sprite=document.getElementById('sprite');
+      const bounds=pet.getBoundingClientRect();
+      const surface=document.createElement('canvas');
+      surface.width=surface.height=64;
+      const ctx=surface.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(sprite,0,0,64,64);
+      const pixels=ctx.getImageData(0,0,64,64).data;
+      let opaque=null,transparent=null;
+      for(let y=4;y<60;y++)for(let x=4;x<60;x++){
+        const a=pixels[(y*64+x)*4+3];
+        if(a>200&&!opaque)opaque={x:bounds.left+(x+.5)/64*bounds.width,y:bounds.top+(y+.5)/64*bounds.height};
+        if(a===0&&!transparent)transparent={x:bounds.left+(x+.5)/64*bounds.width,y:bounds.top+(y+.5)/64*bounds.height};
+      }
+      return {opaque,transparent,alphaHelper:typeof window.DexterHitTest?.alphaAt==='function'};
+    })()`,true);
+    if(!hoverCoordinates.alphaHelper || !hoverCoordinates.opaque || !hoverCoordinates.transparent)
+      throw new Error('Alpha mask lacks opaque and transparent test points: '+JSON.stringify(hoverCoordinates));
+    async function mouseOver(point) {
+      await win.webContents.executeJavaScript('document.dispatchEvent(new MouseEvent("mousemove",'+
+        JSON.stringify({clientX:point.x,clientY:point.y,bubbles:true})+'))',true);
+      await new Promise(resolve=>setTimeout(resolve,80));
+      return overPet;
+    }
+    const opaqueCaptured=await mouseOver(hoverCoordinates.opaque);
+    const transparentReleased=!(await mouseOver(hoverCoordinates.transparent));
+    if(!opaqueCaptured || !transparentReleased)
+      throw new Error('Desktop alpha hit routing failed: '+JSON.stringify({opaqueCaptured,transparentReleased}));
     const flipItem=contextMenu().items.find(item=>item.label==='Flip Dexter');
     if(!flipItem)throw new Error('Flip menu missing');
     flipItem.click();
@@ -250,7 +281,7 @@ async function runSmokeTest() {
     const corners=bitmap.length>=4?[bitmap[3],bitmap[bitmap.length-1]]:[];
     console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify({...report,
       dragged,startBounds,endBounds,tray:!!tray&&!tray.isDestroyed(),protocolDenied:denied.status,
-      videoRange:rangeResponse.status,rangeBytes:rangeBytes.length,screenshotAlphaCorners:corners,mirrored,normal,hidden,recovered
+      videoRange:rangeResponse.status,rangeBytes:rangeBytes.length,screenshotAlphaCorners:corners,mirrored,normal,hidden,recovered,opaqueCaptured,transparentReleased
     }));
     clearTimeout(timeout);
     app.quit();
