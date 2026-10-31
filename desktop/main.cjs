@@ -7,6 +7,7 @@ const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinR
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
 let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, saveTimer;
+const SMOKE_TEST = process.env.DEXTER_DESKTOP_SMOKE === '1';
 protocol.registerSchemesAsPrivileged([{scheme:'dexter',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
 app.commandLine.appendSwitch('disable-features','MediaSessionService');
 
@@ -141,6 +142,55 @@ function setupIpc() {
     contextMenu().popup({window:win});
   });
 }
+async function runSmokeTest() {
+  const timeout = setTimeout(() => {
+    console.error('[DEXTER DESKTOP SMOKE] timeout waiting for renderer');
+    app.exit(1);
+  }, 20000);
+  try {
+    await new Promise((resolve,reject)=>{
+      if (win.webContents.isLoading()) {
+        win.webContents.once('did-finish-load', resolve);
+        win.webContents.once('did-fail-load', (_event, code, reason)=>reject(new Error('Renderer load failed: '+code+' '+reason)));
+      } else resolve();
+    });
+    const report = await win.webContents.executeJavaScript(`(async()=>{
+      await new Promise(resolve=>setTimeout(resolve,150));
+      const pet=document.getElementById('pet');
+      const sprite=document.getElementById('sprite');
+      const mode=document.getElementById('celModeToggle');
+      const css=getComputedStyle(document.body).backgroundColor;
+      const bridge=typeof window.dexterDesktop?.move==='function' && typeof window.dexterDesktop?.hit==='function';
+      const dockHidden=getComputedStyle(document.querySelector('.dock')).display==='none';
+      const media=document.getElementById('celVideo') && document.getElementById('celPoster');
+      const pixel=Boolean(sprite?.complete && sprite.naturalWidth===96 && sprite.naturalHeight===96);
+      document.querySelector('[data-action="treat"]').click();
+      const treated=pet.dataset.state==='eating';
+      mode.checked=true;mode.dispatchEvent(new Event('change',{bubbles:true}));
+      const celEnabled=pet.dataset.artMode==='cel';
+      await new Promise(resolve=>setTimeout(resolve,300));
+      const celReady=celEnabled && Boolean(media) &&
+        (!document.getElementById('celVideo').hidden || !document.getElementById('celPoster').hidden);
+      mode.checked=false;mode.dispatchEvent(new Event('change',{bubbles:true}));
+      return {bridge,dockHidden,pixel,treated,celReady,css,
+        origin:location.origin,state:pet.dataset.state,desktop:document.body.dataset.desktop};
+    })()`, true);
+    if(!report.bridge || !report.dockHidden || !report.pixel || !report.treated || !report.celReady ||
+       report.desktop!=='true' || report.origin!=='dexter://app' ||
+       (report.css!=='rgba(0, 0, 0, 0)' && report.css!=='transparent')) {
+      throw new Error('Smoke assertions failed: '+JSON.stringify(report));
+    }
+    if (!win.isAlwaysOnTop()) throw new Error('Floating-window policy not applied');
+    console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify(report));
+    clearTimeout(timeout);
+    app.quit();
+  } catch(error) {
+    clearTimeout(timeout);
+    console.error('[DEXTER DESKTOP SMOKE FAIL]',error.stack||String(error));
+    app.exit(1);
+  }
+}
+
 app.whenReady().then(()=>{
   app.setAppUserModelId('dev.stinkyweasel.dexterdesk');
   app.setName('Dexter Desk Familiar');
@@ -159,6 +209,7 @@ app.whenReady().then(()=>{
   });
   setupIpc();
   createWindow();
+  if (SMOKE_TEST) void runSmokeTest();
   const image=nativeImage.createFromPath(path.join(ROOT,'icons','icon-192.png'));
   tray=new Tray(image.isEmpty()?nativeImage.createEmpty():image.resize({width:18,height:18}));
   tray.setToolTip('Dexter Desk Familiar');
