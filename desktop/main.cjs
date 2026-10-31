@@ -1,11 +1,13 @@
 'use strict';
-const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session} = require('electron');
+const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, net} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const {pathToFileURL} = require('node:url');
 const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinRoot} = require('./window-state.cjs');
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
 let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, saveTimer;
+protocol.registerSchemesAsPrivileged([{scheme:'dexter',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
 app.commandLine.appendSwitch('disable-features','MediaSessionService');
 
 function save() {
@@ -109,18 +111,13 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(event,url)=>{if(url!==win.webContents.getURL())event.preventDefault();});
   win.webContents.session.webRequest.onBeforeRequest((details,callback)=>{
-    if (details.url.startsWith('file:')) {
-      let resolved;
-      try{resolved=path.resolve(decodeURIComponent(new URL(details.url).pathname));}
-      catch{callback({cancel:true});return;}
-      callback({cancel:!isWithinRoot(ROOT,resolved)});
-    } else callback({cancel:true});
+    callback({cancel:!details.url.startsWith('dexter://app/')});
   });
   win.webContents.on('did-finish-load',()=>{
     win.webContents.executeJavaScript('document.body.dataset.desktop = "true"').catch(()=>{});
     if(settings.art!=='pixel') emit(settings.art);
   });
-  win.loadFile(path.join(ROOT,'index.html')).catch(error=>dialog.showErrorBox('Dexter cannot start',error.message));
+  win.loadURL('dexter://app/index.html').catch(error=>dialog.showErrorBox('Dexter cannot start',error.message));
   win.once('ready-to-show',()=>{win.showInactive();setIgnore();});
 }
 function setupIpc() {
@@ -149,6 +146,17 @@ app.whenReady().then(()=>{
   app.setName('Dexter Desk Familiar');
   session.defaultSession.setPermissionRequestHandler((_webContents,_permission,callback)=>callback(false));
   load();
+  protocol.handle('dexter', request=>{
+    let url;
+    try{url=new URL(request.url);}catch{return new Response('Bad URL',{status:400});}
+    if(url.hostname!=='app' || url.username || url.password || url.port)return new Response('Forbidden',{status:403});
+    let pathname;
+    try{pathname=decodeURIComponent(url.pathname);}catch{return new Response('Bad path',{status:400});}
+    if(pathname.includes('\\\\') || pathname.includes('\\0'))return new Response('Forbidden',{status:403});
+    const requested=path.resolve(ROOT,'.'+pathname);
+    if(!isWithinRoot(ROOT,requested))return new Response('Forbidden',{status:403});
+    return net.fetch(pathToFileURL(requested).toString());
+  });
   setupIpc();
   createWindow();
   const image=nativeImage.createFromPath(path.join(ROOT,'icons','icon-192.png'));
