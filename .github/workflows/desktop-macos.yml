@@ -39,4 +39,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
           test -x "$app/Contents/MacOS/Dexter Desk Familiar"
           test -s "$app/Contents/Resources/app.asar"
+          test -s "$app/Contents/Resources/electron.icns"
+          cmp -s desktop/.stage/Dexter.icns "$app/Contents/Resources/electron.icns"
+          echo "Dexter app icon bytes verified"
           echo "Unsigned bundle layout verified. Real desktop interaction not verified."
