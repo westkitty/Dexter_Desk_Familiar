@@ -16,6 +16,37 @@ for(const file of files){
 for(const file of ['main.cjs','preload.cjs','window-state.cjs','renderer.js','overlay.css','package.json']){
  fs.copyFileSync(path.resolve(__dirname,'..',file),path.join(dest,file));
 }
+// Bind pointer movement to the *window*, not to the PWA's in-scene pet position.
+// Patch only the copied desktop payload; never change the source PWA app.js.
+const stagedAppPath=path.join(dest,'app.js');
+let stagedApp=fs.readFileSync(stagedAppPath,'utf8');
+for(const hook of [
+ 'pet.addEventListener("pointerdown",event=>{',
+ 'pet.addEventListener("pointermove",event=>{',
+ 'pet.addEventListener("pointerup",event=>{',
+ 'pet.addEventListener("pointercancel",()=>{'
+]){
+ if(stagedApp.split(hook).length!==2)throw new Error('Desktop hook mismatch: '+hook);
+ stagedApp=stagedApp.replace(hook,'if(!window.dexterDesktop) '+hook);
+}
+const buttonHook='document.querySelectorAll("[data-action]")';
+if(stagedApp.split(buttonHook).length!==2)throw new Error('Desktop reaction insertion point changed');
+stagedApp=stagedApp.replace(buttonHook,`
+if(window.dexterDesktop){
+ document.addEventListener("dexter-desktop-poke",()=>{
+  lastActivity=Date.now();
+  const count=pokeRhythm.tap();
+  if(count>=3)reaction("huffing",86,1700,"Repeated poking. The complaint is formal.");
+  else if(count===2)reaction("judging",78,1400,"An additional inquiry. Noted.");
+  else reaction("watching",70,1600,"Personal space is a concept.");
+ });
+ document.addEventListener("dexter-desktop-moved",()=>{
+  lastActivity=Date.now();pokeRhythm.reset();
+  bus.publish("judging",30,1100);speak("Relocated. Without consultation.",true);tick();
+ });
+}
+`+buttonHook);
+fs.writeFileSync(stagedAppPath,stagedApp);
 const htmlPath=path.join(dest,'index.html');
 let html=fs.readFileSync(htmlPath,'utf8');
 // Original CSP remains valid for the privileged, same-origin dexter://app scheme.
