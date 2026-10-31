@@ -275,7 +275,7 @@ app.whenReady().then(()=>{
     try {pathname=decodeURIComponent(url.pathname);} catch {return new Response('Bad path',{status:400});}
     if (pathname.includes('\\\\') || pathname.includes('\\0')) return new Response('Forbidden',{status:403});
     const relative=pathname.startsWith('/') ? pathname.slice(1) : pathname;
-    const allowed=['index.html','app.js','styles.css','overlay.css','renderer.js','manifest.webmanifest'];
+    const allowed=['index.html','app.js','styles.css','overlay.css','renderer.js','hit-test.js','manifest.webmanifest'];
     const folder=relative.slice(0,relative.indexOf('/'));
     const leaf=relative.slice(relative.indexOf('/')+1);
     const safeChars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-';
