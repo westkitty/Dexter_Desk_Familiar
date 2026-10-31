@@ -1,0 +1,4 @@
+.stage/
+out/
+node_modules/
+*.log
