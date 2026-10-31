@@ -126,3 +126,20 @@ test("sprite atlas preview remains available after an offline reload",async({pag
   await expect(page.locator("#atlasCanvas")).toBeVisible();
  }finally{await context.setOffline(false);}
 });
+
+// This runs against actual event loops and CSS motion; no synthetic patrol button exists.
+test("rare autonomous patrol visibly moves out and back, and user action interrupts",async({page})=>{
+ await page.addInitScript(()=>{Math.random=()=>0.01;});
+ await page.goto("/");
+ const pet=page.locator("#pet");
+ const start=await pet.evaluate(el=>el.getBoundingClientRect().left);
+ await expect(pet).toHaveAttribute("data-patrolling","true",{timeout:13000});
+ await page.waitForTimeout(1200);
+ const moving=await pet.evaluate(el=>el.getBoundingClientRect().left);
+ expect(Math.abs(moving-start)).toBeGreaterThan(5);
+ await page.getByRole("button",{name:"Treat"}).click();
+ await expect(pet).not.toHaveAttribute("data-patrolling","true");
+ const bounds=await pet.evaluate(el=>({left:el.getBoundingClientRect().left,right:el.getBoundingClientRect().right}));
+ expect(bounds.left).toBeGreaterThanOrEqual(0);
+ expect(bounds.right).toBeLessThanOrEqual(1280);
+});
