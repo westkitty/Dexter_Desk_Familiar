@@ -13,7 +13,7 @@ for(const file of files){
  if(!fs.existsSync(source))throw new Error('Missing source: '+file);
  fs.cpSync(source,path.join(dest,file),{recursive:true,force:true});
 }
-for(const file of ['main.cjs','preload.cjs','window-state.cjs','renderer.js','overlay.css','package.json']){
+for(const file of ['main.cjs','preload.cjs','window-state.cjs','renderer.js','hit-test.js','overlay.css','package.json']){
  fs.copyFileSync(path.resolve(__dirname,'..',file),path.join(dest,file));
 }
 // Bind pointer movement to the *window*, not to the PWA's in-scene pet position.
@@ -51,6 +51,6 @@ const htmlPath=path.join(dest,'index.html');
 let html=fs.readFileSync(htmlPath,'utf8');
 // Original CSP remains valid for the privileged, same-origin dexter://app scheme.
 html=html.replace('</head>','<link rel="stylesheet" href="./overlay.css"></head>');
-html=html.replace('</body>','<script defer src="./renderer.js"></script></body>');
+html=html.replace('</body>','<script defer src="./hit-test.js"></script><script defer src="./renderer.js"></script></body>');
 fs.writeFileSync(htmlPath,html);
 console.log('Prepared isolated desktop web payload in desktop/.stage/app');
