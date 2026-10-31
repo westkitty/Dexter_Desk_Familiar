@@ -1,7 +1,7 @@
 'use strict';
 const {contextBridge, ipcRenderer} = require('electron');
 
-const ACTIONS = new Set(['treat', 'huff', 'nap', 'pixel', 'cel', 'atlas', 'quiet']);
+const ACTIONS = new Set(['treat', 'huff', 'nap', 'pixel', 'cel', 'atlas', 'quiet', 'flip']);
 contextBridge.exposeInMainWorld('dexterDesktop', Object.freeze({
   move(dx, dy) {
     if (Number.isFinite(dx) && Number.isFinite(dy)) ipcRenderer.send('dexter:move', {dx, dy});
