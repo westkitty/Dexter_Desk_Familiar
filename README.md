@@ -79,12 +79,18 @@ The scarce autonomous wandering state can now move Dexter a short distance out a
 
 The GitHub Pages workflow now verifies the publicly served release at the exact source commit by checking the release manifest, SHA-256 and byte count of every app file, and the exclusion of development documents from the website. The site remains https://westkitty.github.io/Dexter_Desk_Familiar/; the GitHub source repository is public. These checks do not replace native-device accessibility, final visual approval or v1.0 certification.
 
-## Unreleased 0.4.0-preview.1 — Owner-accepted cel-shaded animations
+## Source-integrated 0.4.0-preview.1 — Owner-accepted cel-shaded animations
 
-The feature branch feat/approved-cel-shaded-20261031 adds an **off-by-default, session-only** art mode in Settings. The existing 96px reference-derived pixel portraits remain the default; the optional 32px atlas remains a separate, not-canon-approved preview. These modes cannot render simultaneously.
+PR #8 merged `feat/approved-cel-shaded-20261031` into `main`, adding an **off-by-default, session-only** art mode in Settings. The existing 96px reference-derived pixel portraits remain the default; the optional 32px atlas remains a separate, not-canon-approved preview. These modes cannot render simultaneously.
 
 The new mode includes the **eight exact, owner-accepted** transparent WebM clips: lie down, stretch, slow blink, head tilt, tail wag, treat/lick, sit down, and sleeping loop. The three clips previously held for review (treat_lick, sit_down, sleep_loop) were explicitly accepted by the owner on 2026-10-31. Approval is for the creative files, not a new visual-canon promotion or automatic authorization to deploy the public Pages site.
 
 Select "Follow state" or inspect any one clip directly. The renderer enforces muted video, transparent-frame checks, static cel-shaded fallbacks when WebM alpha is unavailable, reduced-motion/quiet behavior, hidden-tab pause, and offline app-shell caching. All video URLs are same-origin and bundled. Neither animation mode records user text or accesses anything outside this page.
 
-This is an unreleased feature branch. The live Pages site and main remain the 0.3.1 behavior until separately merged and deployed. Native Safari, physical mobile accessibility, cross-version service-worker rollback, and long-session performance remain release gates. See docs/CEL_SHADED_ANIMATION.md.
+The eight-clip source reached `main` via PR #8. Current hosted Pages revision must be checked separately against its release manifest; a merge is not a live-deployment certificate. Native Safari, physical mobile accessibility, cross-version service-worker rollback, and long-session performance remain release gates. See docs/CEL_SHADED_ANIMATION.md.
+
+## Native Dexter Desktop — isolated macOS alpha
+
+The additional `desktop/` source in draft [PR #9](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) is a **separate macOS desktop edition** using the existing character engine, not a replacement for the browser/PWA edition. It supplies a transparent floating window, optional always-on-top and click-through controls, drag, local position/size/opacity, flip, context actions, tray recovery, native icon and approved animation playback.
+
+A macOS arm64 app **built and launched successfully** in both Big Mac and GitHub-hosted macOS runtime tests; the original web build stayed green. The desktop ZIP is held locally on Big Mac for internal review. The app remains unsigned/unnotarized and uninstalled on the target MacBook; real user mouse passthrough, VoiceOver, long-soak and installation acceptance are open. No desktop OS sensing, network model connection or TTS was added. See `desktop/README.md` and `OPERATIONAL_STATE.md`.

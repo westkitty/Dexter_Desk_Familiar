@@ -1,7 +1,14 @@
 # Dexter Desk Familiar — Product Blueprint
 
 ## Core promise
-A small pixel Dexter shares a bounded browser habitat with the user. He is recognizable, expressive, reactive only to signals this page can truly observe, and capable of life between interactions. The **familiar is the product**, not a mascot on a productivity dashboard.
+Dexter is a small, character-first familiar in two independent editions: a bounded browser/PWA habitat and a separately packaged opt-in macOS floating desktop companion. He is recognizable, expressive, reactive only to signals each edition is explicitly permitted to observe, and capable of life between interactions. The **familiar is the product**, not a mascot on a productivity dashboard.
+
+## Edition boundary — accepted October 31, 2026
+
+- **Dexter Web:** the existing dependency-free offline PWA. Browser-only interaction sensing, no access to other applications, no global input capture, no added Electron runtime, no mandatory server.
+- **Dexter Desktop:** an isolated macOS native host for the same behavioral states and approved media; transparent floating window, opt-in topmost and pass-through controls, native placement and local settings. The macOS shell does **not** authorize global activity inspection, app control, AI services, telemetry or recording. The desktop edition must be packaged and validated separately.
+- No direct import of WESTCAT implementation. Adapt the useful window behavior conceptually while preserving the independent Dexter project and its art rules.
+- Source alpha and packaged macOS smoke verification are tracked in `OPERATIONAL_STATE.md`; neither overrides the installation, pointer, signed-release and accessibility gates.
 
 ## Experience laws
 1. **Dexter first:** the stage dominates the screen. Primary controls occupy less than 20% of the viewport at normal desktop heights.
@@ -26,13 +33,13 @@ A standalone PWA with three supplied-reference-derived pixel poses, 9 named stat
 - Local voluntary focus session; Dexter observes time inside the page, not external work.
 - Several deterministic micro-routines with interrupted/returning behavior.
 - Temperament threshold controls and calm/quiet defaults.
-### v0.4 — Optional integration experiments (separate consent)
+### v0.4 — Native desktop alpha and separately consented optional integrations
 - Research a *separate* extension for tab counts only, not URLs/content; explicit permission and uninstall instructions.
-- Research a *separate* native shell for a transparent always-on-top window and desktop-wide idle reaction.
+- Implement a separately packaged native shell for a transparent always-on-top window using **Dexter's existing page-local states**. Desktop-wide idle observation remains outside the current permission scope.
 - Neither integration is necessary for the offline web version; they cannot be silently added.
 
 ## Non-goals
-Not an AI chatbot, task manager, note store, keylogger, browser extension, global telemetry collector, native macOS app, WESTCAT rewrite, or Starsilk experience.
+Not an AI chatbot, task manager, note store, keylogger, general browser extension, global telemetry collector, WESTCAT rewrite, or Starsilk experience. The **web edition** is not a native macOS app; the independent desktop edition is an explicitly authorized product extension.
 
 ## Acceptance
 Every state reachable by a local trigger or deterministic time, coherent sprite identity at working size, quiet mode respected, keyboard and touch actions work, no input text persisted, actual offline repeat load, no outbound application requests beyond browser-managed own-origin updates, PWA install tested on supported browsers, layout intact at phone/desktop sizes.
