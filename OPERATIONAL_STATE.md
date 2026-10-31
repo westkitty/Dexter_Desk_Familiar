@@ -142,3 +142,7 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - A **local-only**, validated unsigned arm64 ZIP was prepared on Big Mac under the isolated checkout's `desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip` (~115 MB). `unzip -tqq` passed; SHA-256 `35815d9dc90a5b9c294c278b983902cc6c0c92655ba05c2b7b79ccaef57cd263`. It has NOT been uploaded to the conversation, copied to the user's MacBook, signed, notarized, published or deployed.
 - `desktop/README.md`, root `README.md`, `docs/PRODUCT_BLUEPRINT.md` and `Dexter_Desk_Familiar_bible.md` were updated to distinguish the new approved two-edition product scope from the old PWA-only non-goal.
 - **Release verdict**: PASS for the tested macOS alpha source/bundle/zip path; BLOCKED for public/target-device macOS release by untested real mouse passthrough, MacBook manual interaction and accessibility, signing/notarization and longer-session monitoring. `main`/Pages remain unchanged. Do not equate a successful synthetic pointer-and-window smoke with a real user's click-through acceptance.
+
+### Final independent browser regression receipt
+
+- GitHub Chromium/WebKit browser-smoke run `41218938598` completed **SUCCESS** for native code commit `476b3cb207c2410eaaa1a89f19f69897b5093602`, alongside GitHub source check `41218938543` and macOS Electron bundle check `41218938554`, all **SUCCESS**. These do not substitute for physical target-Mac click-through or signed installation.
