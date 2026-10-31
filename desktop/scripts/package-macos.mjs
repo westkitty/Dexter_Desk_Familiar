@@ -9,6 +9,6 @@ const packager=path.join(root,'node_modules','.bin','electron-packager');
 execFileSync(packager,[
   path.join(root,'.stage','app'),'Dexter Desk Familiar','--platform=darwin',
   '--arch=arm64','--out='+out,'--overwrite','--app-bundle-id=dev.stinkyweasel.dexterdesk',
-  '--app-version=0.1.0-alpha.1','--prune=true','--asar=true'
+  '--app-version=0.1.0-alpha.1','--prune=true','--asar'
 ],{cwd:root,stdio:'inherit'});
 console.log('Unsigned development bundle prepared in desktop/out; signing and notarization NOT performed.');
