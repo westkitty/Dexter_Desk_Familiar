@@ -34,13 +34,23 @@ Use the app from `desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Fami
 
 ## Interactions
 
-Dexter is a small transparent floating window. Drag the character, not the empty area. Right-click to summon controls; the menu bar tray icon is always a recovery point. Size, opacity, topmost preference, art mode and window position are saved locally. The default art remains the original 96px pixel portraits; accepted cel-shaded WebM clips are opt-in; the unapproved 32px atlas stays labeled as such. If transparency is unsupported, the still fallback is the existing local art.
+Dexter is a small transparent floating window. Drag the character, not the empty area. Right-click to summon controls; the menu-bar tray icon is always a recovery point. Size, opacity, topmost preference, visual flip, art mode and window position are saved locally. The same menu includes Hide Dexter, Show Dexter, quiet mode and click-through controls. The default art remains the original 96px pixel portraits; accepted cel-shaded WebM clips are opt-in; the unapproved 32px atlas stays labeled as such. If transparency is unsupported, the still fallback is the existing local art.
 
 Hit-test passthrough forwards mouse movement to the renderer to regain interactivity when hovering the character. This requires direct target-machine validation on macOS; passing unit tests does not prove transparent-area forwarding works. **Pass through all clicks** is an explicit alternate mode; use the menu bar tray icon to turn it off. No global keyboard monitoring, screen recording or accessibility sensing.
 
 ## Boundaries
 
 Core files from the current PWA are copied to an **ignored** staging folder; only the prepared desktop stage gets the desktop-only CSS/HTML adaptation. The public PWA release allowlist, service worker and hosted GitHub Pages are unchanged. No Ollama connection, real AI chat, TTS, telemetry, desktop keyboard observation, or public network listeners are added.
+
+## Built alpha artifact on Big Mac
+
+An unsigned `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip` (about 115 MB) was created in the isolated checkout's `desktop/out/` folder on Big Mac, with archive validation PASS. SHA-256:
+
+```text
+35815d9dc90a5b9c294c278b983902cc6c0c92655ba05c2b7b79ccaef57cd263
+```
+
+This ZIP is **only on Big Mac**. It is not a signed release, not a GitHub release asset, not available from the Pages site, and not yet installed on the MacBook. Preserve it until handoff or supersession; do not tell the user the GitHub Actions runner's ephemeral bundle is automatically downloadable.
 
 ## Gate before release
 
