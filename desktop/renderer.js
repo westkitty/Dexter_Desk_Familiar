@@ -7,10 +7,59 @@ if (native) {
   let tracking = null;
   let hintTimeout = null;
   let lastHover = null;
+  let lastPointer = null;
+  const hitTest = window.DexterHitTest;
+  const maskCanvas = document.createElement('canvas');
+  maskCanvas.width = maskCanvas.height = hitTest?.MASK_SIZE || 64;
+  const maskContext = maskCanvas.getContext('2d', {willReadFrequently:true});
+  let cachedMask = {source:null, key:'', data:null, sampledAt:-Infinity};
 
-  function isOverPet(x, y) {
-    const box = pet.getBoundingClientRect();
-    return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+  function visibleMedia() {
+    for (const id of ['celVideo','celPoster','atlasCanvas','sprite']) {
+      const element = document.getElementById(id);
+      if (element && !element.hidden && getComputedStyle(element).display !== 'none') return element;
+    }
+    return null;
+  }
+  function sourceSize(element) {
+    if (element.tagName === 'VIDEO') return [element.videoWidth,element.videoHeight];
+    if (element.tagName === 'IMG') return [element.naturalWidth,element.naturalHeight];
+    return [element.width,element.height];
+  }
+  function isOverPet(x,y) {
+    const box=pet.getBoundingClientRect();
+    if(!hitTest?.within(box,x,y))return false;
+    if(tracking)return true;
+    const media=visibleMedia();
+    if(!media || !maskContext)return true; // Never strand Dexter if pixel sampling is unsupported.
+    const [width,height]=sourceSize(media);
+    if(!width || !height)return true;
+    const now=performance.now();
+    const key=media.currentSrc || media.src || String(media.width)+'x'+String(media.height);
+    const animated=media.tagName==='VIDEO'||media.tagName==='CANVAS';
+    if(cachedMask.source!==media || cachedMask.key!==key ||
+      (animated && now-cachedMask.sampledAt>100)){
+      let data=null;
+      const contained=hitTest.containedRect(width,height,maskCanvas.width,maskCanvas.height);
+      if(contained){
+        try{
+          maskContext.clearRect(0,0,maskCanvas.width,maskCanvas.height);
+          maskContext.drawImage(media,contained.x,contained.y,contained.width,contained.height);
+          data=maskContext.getImageData(0,0,maskCanvas.width,maskCanvas.height);
+        }catch{
+          // A tainted or unsupported decoder must not make the familiar inaccessible.
+        }
+      }
+      cachedMask={source:media,key,data,sampledAt:now};
+    }
+    const alphaHit=hitTest.alphaAt(cachedMask.data,box,x,y,{
+      flipped:document.body.classList.contains('desktop-flipped')
+    });
+    return alphaHit===null?true:alphaHit;
+  }
+  function syncHover(x,y) {
+    const overPet=isOverPet(x,y);
+    if(overPet!==lastHover){lastHover=overPet;native.hit(overPet);}
   }
   function setArt(mode) {
     for (const [key, checkbox] of Object.entries(art)) {
@@ -49,10 +98,22 @@ if (native) {
   native.onAction(action);
   // Forward only a boolean hit test within this overlay, never coordinates or a history.
   document.addEventListener('mousemove', event => {
-    const overPet = isOverPet(event.clientX, event.clientY);
-    if (overPet !== lastHover) {lastHover = overPet;native.hit(overPet);}
-  }, {passive:true});
-  document.addEventListener('mouseleave', () => {lastHover = false;native.hit(false);});
+    lastPointer={x:event.clientX,y:event.clientY};
+    syncHover(lastPointer.x,lastPointer.y);
+  },{passive:true});
+  document.addEventListener('mouseleave', ()=>{
+    lastPointer=null;lastHover=false;native.hit(false);
+  });
+  // Video movement can change the character's actual opaque footprint under a still cursor.
+  document.getElementById('celVideo')?.addEventListener('timeupdate',()=>{
+    if(lastPointer && !tracking)syncHover(lastPointer.x,lastPointer.y);
+  });
+  for(const id of ['sprite','celPoster']){
+    document.getElementById(id)?.addEventListener('load',()=>{
+      cachedMask.source=null;
+      if(lastPointer && !tracking)syncHover(lastPointer.x,lastPointer.y);
+    });
+  }
   // Capture window dragging without letting the original in-habitat move handlers run.
   pet.addEventListener('pointerdown', event => {
     if(event.button !== 0) return;
