@@ -6,7 +6,7 @@ const path = require('node:path');
 const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinRoot} = require('./window-state.cjs');
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
-let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, saveTimer;
+let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, dragVirtual = null, saveTimer;
 const SMOKE_TEST = process.env.DEXTER_DESKTOP_SMOKE === '1';
 protocol.registerSchemesAsPrivileged([{scheme:'dexter',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true}}]);
 app.commandLine.appendSwitch('disable-features','MediaSessionService');
@@ -32,17 +32,27 @@ function setIgnore() {
 }
 function reposition(delta) {
   if (!win || win.isDestroyed()) return;
-  const current = win.getBounds();
-  const display = screen.getDisplayMatching(current).workArea;
-  const position = clampPosition({x:current.x + Math.round(delta.dx), y:current.y + Math.round(delta.dy)}, display, current);
-  win.setPosition(position.x, position.y);
+  const current=win.getBounds();
+  if (!dragVirtual) dragVirtual={x:current.x,y:current.y};
+  dragVirtual.x+=Math.round(delta.dx);
+  dragVirtual.y+=Math.round(delta.dy);
+  const target=screen.getDisplayNearestPoint({
+    x:dragVirtual.x+Math.floor(current.width/2),
+    y:dragVirtual.y+Math.floor(current.height/2)
+  }).workArea;
+  const position=clampPosition(dragVirtual,target,current);
+  win.setPosition(position.x,position.y);
 }
 function placeWindow() {
-  const size = dimensions(settings.size);
-  const display = screen.getPrimaryDisplay().workArea;
-  const candidate = {x:settings.x ?? display.x + display.width - size.width - 28,
-    y:settings.y ?? display.y + display.height - size.height - 28};
-  const at = clampPosition(candidate, display, size);
+  const size=dimensions(settings.size);
+  const saved=settings.x!==null && settings.y!==null;
+  const chosen=saved ? screen.getDisplayNearestPoint({
+    x:settings.x+Math.floor(size.width/2),y:settings.y+Math.floor(size.height/2)
+  }) : screen.getPrimaryDisplay();
+  const display=chosen.workArea;
+  const candidate={x:saved?settings.x:display.x+display.width-size.width-28,
+    y:saved?settings.y:display.y+display.height-size.height-28};
+  const at=clampPosition(candidate,display,size);
   win.setBounds({...size, ...at});
 }
 function emit(action) {win?.webContents?.send('dexter:action', action);}
@@ -58,6 +68,7 @@ function contextMenu() {
     {label:'Treat',click:()=>emit('treat')},
     {label:'Huff',click:()=>emit('huff')},
     {label:'Nap / Wake',click:()=>emit('nap')},
+    {label:'Toggle quiet mode',click:()=>emit('quiet')},
     {type:'separator'},
     {label:'Appearance',submenu:[
       {label:'Original pixel Dexter', type:'radio', checked:settings.art==='pixel',click:()=>setArt('pixel')},
@@ -135,7 +146,7 @@ function setupIpc() {
   });
   ipcMain.on('dexter:drag-end',event=>{
     if(event.sender!==win?.webContents)return;
-    moving=false;setIgnore();scheduleSave();
+    moving=false;dragVirtual=null;setIgnore();scheduleSave();
   });
   ipcMain.on('dexter:menu',event=>{
     if(event.sender!==win?.webContents)return;
