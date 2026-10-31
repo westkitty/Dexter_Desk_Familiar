@@ -3,7 +3,7 @@ const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, ses
 const fs = require('node:fs');
 const path = require('node:path');
 const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinRoot} = require('./window-state.cjs');
-const ROOT = path.resolve(__dirname, 'web');
+const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
 let win, tray, settings, settingsPath, passThrough = false, overPet = false, moving = false, saveTimer;
 app.commandLine.appendSwitch('disable-features','MediaSessionService');
