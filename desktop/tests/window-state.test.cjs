@@ -22,3 +22,9 @@ test('file access stays inside the bundled web root',()=>{
  assert.equal(isWithinRoot(root,path.join(root,'index.html')),true);
  assert.equal(isWithinRoot(root,path.resolve(root,'../other')),false);
 });
+
+test('flip state is persisted only when explicitly boolean',()=>{
+ assert.equal(sanitizeSettings({flipped:true}).flipped,true);
+ assert.equal(sanitizeSettings({flipped:'yes'}).flipped,false);
+ assert.equal(sanitizeSettings(null).flipped,false);
+});
