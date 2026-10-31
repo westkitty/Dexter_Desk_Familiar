@@ -73,3 +73,11 @@ Before marking verified: exact-head Node CI, complete-cache atomic install and r
 - Non-release files README.md and OPERATIONAL_STATE.md returned HTTP 404 from the hosted Pages URL; public source files remain accessible in GitHub because repository visibility changed to public.
 - Prior 'site not enabled' failures are superseded for live deployment state; historical logs remain valid as failed attempts.
 - No claim of Mac-native Safari physical-device review, live visual approval, or full v1.0 certification.
+
+## 2026-10-31 — verified public v0.3.1
+
+- Starting main `31e86db1`, merged code `b0242e3c060a068032f62ca6263f5209c79ad187` via PR #7. Old ZIP was not overlaid on modern code.
+- **Node/build integrity:** 58 unit/lifecycle tests and 2 release tests PASS, 23-file allowlist / 92,990 bytes. Exact-code branch check https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186244506 and main https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186422188 PASS.
+- **Real browser:** 22/22 Chromium/WebKit PASS on branch https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186244571 and on merge SHA https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186422191. New patrol visibly traversed and was interrupted by a direct Treat action, while existing privacy, mobile bounds, offline and sprite fallbacks stayed green.
+- **Deployment:** Pages workflow https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186422183 succeeded. Exact public release SHA `b0242e3c060a068032f62ca6263f5209c79ad187`, 23 individual file digests, byte counts and 404 exclusion checks were executed and passed. Big Mac independently fetched manifest showing this SHA, 23 files, version 0.3.1.
+- **Not proved:** 60-minute performance measurement, native Safari/device assistive testing, full two-version SW rollback on physical devices, image/canon approval or v1.0 completeness.

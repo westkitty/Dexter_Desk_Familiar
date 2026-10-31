@@ -41,3 +41,14 @@ These newer checks add evidence to the historical baseline above; they do not au
 - [ ] Canonical art approval, native Safari/mobile manual checks, real upgrade/rollback acceptance and v1.0 release remain pending.
 
 **Current repository visibility: PUBLIC.** Historic references to private source status are superseded; the GitHub repository's documents are publicly accessible even though the hosted website excludes them.
+
+## 2026-10-31 — v0.3.1 source / browser / deployment closure
+
+- [x] Rare patrol is viewport bounded, respects user interruption and preserves the anchor; tested in Chromium and WebKit at the exact merge commit.
+- [x] Browser test suite 22/22 PASS; Node/unit tests 58/58 and release tests 2/2 PASS at `b0242e3c060a068032f62ca6263f5209c79ad187`.
+- [x] GitHub Pages deployment verified against `b0242e3c060a068032f62ca6263f5209c79ad187`: all 23 public application file hashes/bytes and development-file exclusions matched the release manifest.
+- [x] Private source status was NOT claimed: repository visibility was already PUBLIC when work began and remains so.
+- [ ] Native Safari/macOS and physical Android/touch/screen-reader acceptance.
+- [ ] Full two-version offline worker upgrade, interrupted update and rollback replay.
+- [ ] User-approved final visual canon / independent 32px atlas for default mode.
+- [ ] 60-minute performance and v1.0 release gate.

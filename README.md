@@ -2,7 +2,7 @@
 
 A small, opinionated, privacy-first browser familiar starring **Dexter**. Three reference-derived pixel poses and a semantic behavior engine. He is present first; the UI stays secondary.
 
-**Status:** v0.3 implementation candidate, tested with staged source and browser verification, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
+**Status:** v0.3.1 live PWA preview, tested with staged source and browser verification, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
 
 ## Run locally
 
@@ -72,3 +72,9 @@ See `docs/ATLAS_CANDIDATE.md` for pixel provenance and approval boundaries. Thes
 **Live:** https://westkitty.github.io/Dexter_Desk_Familiar/
 
 Pages was activated in GitHub Actions mode. The deployment workflow run 40846064963 succeeded from `main` at `ad6e2433597303a415e878d3e9e9bff661c523e9`. External HTTPS checks returned 200 for the site, app JavaScript, animation module, and opt-in candidate atlas; README and Operational State were 404 on the *hosted website*. The GitHub repository itself is now **public**, so source and project documentation are accessible on GitHub. Do not confuse exclusion from the hosted site with repo secrecy. Final visual canon approval, physical Safari and v1.0 release gates remain open.
+
+## v0.3.1 — Dexter patrols and release proof
+
+The scarce autonomous wandering state can now move Dexter a short distance out and back, without replacing a manually chosen position. Any direct interaction, viewport adjustment, backgrounding or reduced-motion preference interrupts the travel. No OS activity is observed.
+
+The GitHub Pages workflow now verifies the publicly served release at the exact source commit by checking the release manifest, SHA-256 and byte count of every app file, and the exclusion of development documents from the website. The site remains https://westkitty.github.io/Dexter_Desk_Familiar/; the GitHub source repository is public. These checks do not replace native-device accessibility, final visual approval or v1.0 certification.
