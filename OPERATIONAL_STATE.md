@@ -111,3 +111,14 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - Confirmed cause: `scripts/verify-pages.mjs` still enforced the older flat-path PNG-only manifest rule. The new release intentionally includes owner-approved nested `assets/cel-shaded/clips/*.webm` and poster PNG files, which the builder and release tests allow.
 - Narrow repair: align published-file validation with the release allowlist, retaining SHA-256, byte-size, origin/path, traversal, and excluded-document checks. Add nested WebM/poster and invalid-path regression fixtures.
 - Production verification is pending the exact-commit Pages workflow for this repair. Do not claim it succeeded based on the deploy action alone. Preserve the pixel-art default, offline requirements, privacy boundary, and eight approved clip bytes.
+
+
+## 2026-10-31 — Native desktop overlay alpha, isolated draft PR #9
+
+- New user-approved goal: add a real desktop companion matching the useful WESTCAT overlay interaction model while retaining a separately working browser/PWA edition. This supersedes the earlier native-shell non-goal **only for a separately packaged opt-in desktop edition**; no global activity monitoring, browser tab inspection, AI routing or TTS are implied.
+- Implementation branch: `feature/desktop-overlay-v1-20261031`, based on main `fdf3727e2c924fa42713e5cb443247e267d1103f`, draft PR #9: https://github.com/westkitty/Dexter_Desk_Familiar/pull/9
+- Implemented in source (NOT yet runtime-verified): desktop-only Electron 45.2.1 host; transparent frameless window; topmost preference; native tray recovery; optional hit-test passthrough; character drag/window positioning; size, opacity, placement and art preference persistence; three existing art paths; bounded preload IPC; file-only load guard; no other network or permission services; separate staged desktop-only HTML/CSS.
+- Source-protection contract: no changes to browser `index.html`, `app.js`, `styles.css`, `src/`, existing asset bytes, PWA build allowlist, existing Pages workflows or sibling WESTCAT repositories. Desktop stage and output ignored. Browser web edition remains the default.
+- Validation requested: macOS GitHub Actions syntax, Node tests, staging and unsigned arm64 bundle checks; after CI, real macOS launch, alpha-WebM test, default pixel/cel fallback, click-through + tray recovery, multiple display bounds, menu interactions, settings persistence, VoiceOver/reduced-motion, long-session CPU/memory, and outbound traffic audit.
+- Evidence currently: branch and PR creation verified through GitHub; desktop source and workflow committed. **Native runtime, CI outcome, installation, signing, notarization and release are unverified.** Never call this a finished desktop app until actual tests prove it.
+- Rollback: discard draft PR/desktop directory; main web/PWA and published Pages remain untouched.
