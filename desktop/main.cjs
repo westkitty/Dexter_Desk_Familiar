@@ -154,6 +154,7 @@ async function runSmokeTest() {
         win.webContents.once('did-fail-load', (_event, code, reason)=>reject(new Error('Renderer load failed: '+code+' '+reason)));
       } else resolve();
     });
+    const startBounds=win.getBounds();
     const report = await win.webContents.executeJavaScript(`(async()=>{
       await new Promise(resolve=>setTimeout(resolve,150));
       const pet=document.getElementById('pet');
@@ -164,24 +165,40 @@ async function runSmokeTest() {
       const dockHidden=getComputedStyle(document.querySelector('.dock')).display==='none';
       const media=document.getElementById('celVideo') && document.getElementById('celPoster');
       const pixel=Boolean(sprite?.complete && sprite.naturalWidth===96 && sprite.naturalHeight===96);
+      const pokeOptions={bubbles:true,button:0,pointerId:4,screenX:180,screenY:180};
+      pet.dispatchEvent(new PointerEvent('pointerdown',pokeOptions));
+      pet.dispatchEvent(new PointerEvent('pointerup',pokeOptions));
+      const poke=document.getElementById('thought').textContent.includes('Personal space');
+      pet.dispatchEvent(new PointerEvent('pointerdown',{...pokeOptions,screenX:180,screenY:180}));
+      pet.dispatchEvent(new PointerEvent('pointermove',{...pokeOptions,screenX:157,screenY:162}));
+      pet.dispatchEvent(new PointerEvent('pointerup',{...pokeOptions,screenX:157,screenY:162}));
       document.querySelector('[data-action="treat"]').click();
       const treated=pet.dataset.state==='eating';
       mode.checked=true;mode.dispatchEvent(new Event('change',{bubbles:true}));
       const celEnabled=pet.dataset.artMode==='cel';
-      await new Promise(resolve=>setTimeout(resolve,300));
+      const selection=document.getElementById('celClipSelect');
+      selection.value='slow_blink';
+      selection.dispatchEvent(new Event('change',{bubbles:true}));
+      await new Promise(resolve=>setTimeout(resolve,800));
       const celReady=celEnabled && Boolean(media) &&
         (!document.getElementById('celVideo').hidden || !document.getElementById('celPoster').hidden);
+      const celDecoded=Boolean(document.getElementById('celVideo').videoWidth) &&
+        !document.getElementById('celVideo').hidden;
+      const celStatus=document.getElementById('celStatus').textContent;
       mode.checked=false;mode.dispatchEvent(new Event('change',{bubbles:true}));
-      return {bridge,dockHidden,pixel,treated,celReady,css,
+      return {bridge,dockHidden,pixel,poke,treated,celReady,celDecoded,celStatus,css,
         origin:location.origin,state:pet.dataset.state,desktop:document.body.dataset.desktop};
     })()`, true);
-    if(!report.bridge || !report.dockHidden || !report.pixel || !report.treated || !report.celReady ||
+    await new Promise(resolve=>setTimeout(resolve,130));
+    const endBounds=win.getBounds();
+    const dragged=startBounds.x!==endBounds.x || startBounds.y!==endBounds.y;
+    if(!report.bridge || !report.dockHidden || !report.pixel || !report.poke || !report.treated || !report.celReady || !dragged ||
        report.desktop!=='true' || report.origin!=='dexter://app' ||
        (report.css!=='rgba(0, 0, 0, 0)' && report.css!=='transparent')) {
       throw new Error('Smoke assertions failed: '+JSON.stringify(report));
     }
     if (!win.isAlwaysOnTop()) throw new Error('Floating-window policy not applied');
-    console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify(report));
+    console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify({...report,dragged,startBounds,endBounds,tray:!!tray&&!tray.isDestroyed()}));
     clearTimeout(timeout);
     app.quit();
   } catch(error) {
