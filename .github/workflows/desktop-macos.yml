@@ -43,3 +43,26 @@ jobs:
           cmp -s desktop/.stage/Dexter.icns "$app/Contents/Resources/electron.icns"
           echo "Dexter app icon bytes verified"
           echo "Unsigned bundle layout verified. Real desktop interaction not verified."
+
+      - name: Create ZIP and SHA-256 for target-device review only
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        run: |
+          app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
+          zip="Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip"
+          cd desktop/out
+          ditto -c -k --sequesterRsrc --keepParent "Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app" "$zip"
+          test -s "$zip"
+          unzip -tqq "$zip"
+          shasum -a 256 "$zip" | tee "$zip.sha256"
+          echo "Verified unsigned alpha ZIP; not signed or notarized"
+      - name: Upload private-to-workflow unsigned review artifact
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-${{ github.run_number }}
+          path: |
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip.sha256
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
