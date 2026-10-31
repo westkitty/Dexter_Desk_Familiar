@@ -1,5 +1,5 @@
 'use strict';
-const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol} = require('electron');
+const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, net} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -209,7 +209,24 @@ async function runSmokeTest() {
       throw new Error('Smoke assertions failed: '+JSON.stringify(report));
     }
     if (!win.isAlwaysOnTop()) throw new Error('Floating-window policy not applied');
-    console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify({...report,dragged,startBounds,endBounds,tray:!!tray&&!tray.isDestroyed()}));
+    const denied=await net.fetch('dexter://app/main.cjs');
+    const rangeResponse=await net.fetch('dexter://app/assets/cel-shaded/clips/slow_blink.webm',{
+      headers:{Range:'bytes=0-31'}
+    });
+    const rangeBytes=Buffer.from(await rangeResponse.arrayBuffer());
+    const rangeProven=rangeResponse.status===206 && rangeBytes.length===32 &&
+      rangeResponse.headers.get('content-range')?.startsWith('bytes 0-31/');
+    if(denied.status!==403 || !rangeProven)
+      throw new Error('Protocol safety or video byte range failed: '+JSON.stringify({
+        denied:denied.status,range:rangeResponse.status,bytes:rangeBytes.length
+      }));
+    const captured=await win.capturePage();
+    const bitmap=captured.toBitmap();
+    const corners=bitmap.length>=4?[bitmap[3],bitmap[bitmap.length-1]]:[];
+    console.log('[DEXTER DESKTOP SMOKE PASS] '+JSON.stringify({...report,
+      dragged,startBounds,endBounds,tray:!!tray&&!tray.isDestroyed(),protocolDenied:denied.status,
+      videoRange:rangeResponse.status,rangeBytes:rangeBytes.length,screenshotAlphaCorners:corners
+    }));
     clearTimeout(timeout);
     app.quit();
   } catch(error) {
