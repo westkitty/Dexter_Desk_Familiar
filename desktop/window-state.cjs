@@ -3,7 +3,7 @@
 const SIZES = Object.freeze({small: 200, medium: 260, large: 330});
 const DEFAULTS = Object.freeze({
   size: 'medium', opacity: 1, alwaysOnTop: true,
-  preciseHitTest: true, quiet: false, art: 'pixel',
+  preciseHitTest: true, quiet: false, flipped: false, art: 'pixel',
   x: null, y: null
 });
 
@@ -15,6 +15,7 @@ function sanitizeSettings(candidate) {
     alwaysOnTop: typeof value.alwaysOnTop === 'boolean' ? value.alwaysOnTop : DEFAULTS.alwaysOnTop,
     preciseHitTest: typeof value.preciseHitTest === 'boolean' ? value.preciseHitTest : DEFAULTS.preciseHitTest,
     quiet: typeof value.quiet === 'boolean' ? value.quiet : DEFAULTS.quiet,
+    flipped: typeof value.flipped === 'boolean' ? value.flipped : DEFAULTS.flipped,
     art: ['pixel', 'cel', 'atlas'].includes(value.art) ? value.art : DEFAULTS.art,
     x: Number.isInteger(value.x) && Math.abs(value.x) < 100000 ? value.x : null,
     y: Number.isInteger(value.y) && Math.abs(value.y) < 100000 ? value.y : null
