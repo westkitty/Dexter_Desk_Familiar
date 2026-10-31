@@ -27,3 +27,11 @@ This additive ledger records significant implementation decisions. It does not o
 
 ### Continuity warning
 - The source repository is currently public. Do not accidentally describe the repository as private or publish secrets. Historical private status is preserved only as historical evidence.
+
+## 2026-10-31 — Approved cel-shaded motion set (distinct from default pixel canon)
+
+- Owner explicitly approved the three originally held finished clips: treat_lick, sit_down, sleep_loop; five previously shortlisted clips are also accepted. This is a visual-asset acceptance for **eight exact encoded animations**, not a change to canonical 96px/32px character-art authority.
+- Accepted named actions: lie down, stretch, slow blink, head tilt, tail wag, treat/lick, sit down, sleeping loop. Their SHA-256 locks are recorded in tests/cel-animation.test.mjs.
+- Runtime route: opt-in, session-only cel-shaded mode; 96px pixel portraits remain default; independent opt-in 32px atlas cannot overlap. Original source pixels must not be rewritten, stretched or replaced.
+- Behavior law: motion tied to explicit local semantic state; no outside-page sensing, no new persistent data, no third-party media fetches, no audio autoplay. When transparency is unsupported, display approved still artwork rather than an opaque matte.
+- Approval does not waive real-browser, offline upgrade, accessible/reduced-motion, mobile/Safari and performance checks. Do not treat artistically approved sit-down end geometry as objectively identical to the 96px pixel pose.

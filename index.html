@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#11191c">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="A tiny, disapproving Dexter who inhabits a private, offline desk.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data:; script-src 'self'; style-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; img-src 'self' data:; media-src 'self'; script-src 'self'; style-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>Dexter Desk Familiar</title>
   <link rel="icon" href="./icons/icon-192.png" type="image/png">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
@@ -30,6 +30,8 @@
         <span class="sprite-shadow" aria-hidden="true"></span>
         <img id="sprite" class="sprite" src="./assets/dexter-sit-96.png" alt="Pixel portrait of Dexter: floppy black ears, tan eyebrows, cream ruff, narrow eyes, scowl, and curled tail" draggable="false" width="96" height="96">
         <canvas id="atlasCanvas" class="atlas-canvas" width="32" height="32" hidden aria-hidden="true"></canvas>
+        <img id="celPoster" class="cel-media" src="./assets/cel-shaded/posters/slow_blink_start.png" alt="" width="384" height="384" draggable="false" hidden aria-hidden="true">
+        <video id="celVideo" class="cel-media" muted playsinline preload="none" hidden aria-hidden="true"></video>
         <span class="puff" aria-hidden="true">hff.</span>
         <span class="sleeping-marks" aria-hidden="true">z<span>z</span><span>z</span></span>
         <span class="treat-stars" aria-hidden="true">✦</span>
@@ -66,6 +68,11 @@
     <label class="setting"><span><strong>Preview 32px Dexter animation</strong><small>Unapproved SNES_Dex candidate. Off by default; the 96px portrait is preserved.</small></span><input type="checkbox" id="atlasPreviewToggle"></label>
     <label class="setting" id="atlasClipControl" hidden><span><strong>Preview animation</strong><small>Follow state or inspect an original clip; never changes the default art.</small></span><select id="atlasClipSelect"><option value="auto">Follow state</option><option value="idle">Idle</option><option value="walk">Walk</option><option value="sniff">Sniff</option><option value="bark">Bark</option><option value="unimpressed">Unimpressed</option></select></label>
     <output class="atlas-status" id="atlasStatus" aria-live="polite">Preview off · original artwork retained.</output>
+    <label class="setting"><span><strong>Approved cel-shaded Dexter</strong><small>Eight approved animations. Session-only; the original pixel art stays the default. Unsupported video shows local stills.</small></span><input type="checkbox" id="celModeToggle"></label>
+    <label class="setting" id="celClipControl" hidden><span><strong>Cel-shaded animation</strong><small>Follow Dexter's state, or preview any approved clip.</small></span><select id="celClipSelect">
+      <option value="auto">Follow state</option><option value="lie_down">Lie down</option><option value="stretch">Stretch</option><option value="slow_blink">Slow blink</option><option value="head_tilt">Head tilt</option><option value="tail_wag">Tail wag</option><option value="treat_lick">Treat / lick</option><option value="sit_down">Sit down</option><option value="sleep_loop">Sleeping</option>
+    </select></label>
+    <output class="atlas-status" id="celStatus" aria-live="polite">Cel-shaded mode off; original artwork retained.</output>
     <label class="setting"><span><strong>Idle before resting</strong><small>Activity inside this page only.</small></span><select id="idleSelect"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
     <div class="setting clutter-setting"><span><strong>Make-believe tab pile</strong><small>A local simulation. Dexter cannot see your actual browser tabs.</small></span><div class="counter"><button type="button" id="removeTab" aria-label="Remove simulated tab">−</button><output id="tabCount">0</output><button type="button" id="addTab" aria-label="Add simulated tab">+</button></div></div>
     <div class="privacy-card"><strong>Privacy, without mythology.</strong><p>No analytics, accounts, recordings, transmitted text, extension permissions or third-party scripts. Only your preferences use localStorage. Offline application files are stored in the browser's service-worker cache. Browser-managed update checks may still contact the app's original host.</p></div>

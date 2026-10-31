@@ -8,10 +8,10 @@ const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
 const dist=join(root,"dist");
 test("distribution publishes only the explicit app allowlist",async()=>{
  const report=JSON.parse(await readFile(join(dist,"release-manifest.json"),"utf8"));
- assert.equal(report.files.length,23);
+ assert.equal(report.files.length,36);
  assert.ok(report.totalBytes<2*1024*1024);
  for(const file of report.files){
-  assert.match(file.path,/^(?:src\/|assets\/|icons\/)?[a-zA-Z0-9_-]+\.(?:html|css|js|mjs|png|webmanifest)$/);
+  assert.match(file.path,/^(?:(?:src|assets|icons)(?:\/[a-zA-Z0-9_-]+){0,2}\/)?[a-zA-Z0-9_-]+\.(?:html|css|js|mjs|png|webmanifest|webm)$/);
   const bytes=await readFile(join(dist,file.path));
   assert.equal(bytes.length,file.bytes,file.path);
   assert.equal(createHash("sha256").update(bytes).digest("hex"),file.sha256,file.path);

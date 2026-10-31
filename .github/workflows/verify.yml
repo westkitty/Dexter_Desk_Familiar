@@ -20,7 +20,7 @@ jobs:
       - name: Check required PWA assets
         run: |
           set -eu
-          for path in assets/dexter-sit-96.png assets/dexter-stand-96.png assets/dexter-rest-96.png assets/dexter-snes-32-candidate.png icons/icon-192.png icons/icon-512.png; do
+          for path in assets/dexter-sit-96.png assets/dexter-stand-96.png assets/dexter-rest-96.png assets/dexter-snes-32-candidate.png assets/cel-shaded/posters/slow_blink_start.png assets/cel-shaded/posters/stretch_start.png assets/cel-shaded/posters/lie_down_end.png assets/cel-shaded/posters/sleep_loop_start.png icons/icon-192.png icons/icon-512.png; do
             test -s "$path" || { echo "::error file=$path::Required PNG missing"; exit 1; }
           done
       - name: Static import and cache contract
@@ -30,7 +30,7 @@ jobs:
             const app=fs.readFileSync("app.js","utf8");
             const sw=fs.readFileSync("sw.js","utf8");
             const server=fs.readFileSync("dev-server.mjs","utf8");
-            for(const path of ["behavior","observations","director","renderer","audio","settings","interaction","remarks","attention","presence","animation","locomotion"]){
+            for(const path of ["behavior","observations","director","renderer","audio","settings","interaction","remarks","attention","presence","animation","cel-animation","locomotion"]){
               if(!app.includes("./src/"+path+".mjs"))throw Error("App import missing "+path);
               if(!sw.includes("./src/"+path+".mjs"))throw Error("Offline cache missing "+path);
               if(!server.includes("/src/"+path+".mjs"))throw Error("Local server missing "+path);

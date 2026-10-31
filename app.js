@@ -9,6 +9,7 @@ import{createRemarks}from"./src/remarks.mjs";
 import{createAttentionBudget}from"./src/attention.mjs";
 import{createPointerPresence,createPokeRhythm}from"./src/presence.mjs";
 import{createSpritePreview}from"./src/animation.mjs";
+import{createCelAnimator}from"./src/cel-animation.mjs";
 import{planPatrol}from"./src/locomotion.mjs";
 const byId=id=>document.getElementById(id);
 const scene=byId("scene"),pet=byId("pet"),sprite=byId("sprite"),thought=byId("thought"),stateLabel=byId("stateLabel"),sceneCaption=byId("sceneCaption");
@@ -21,8 +22,9 @@ const bus=new FamiliarBus();
 const audio=createAudio({enabled:()=>preferences.sound});
 const remarks=createRemarks(),attentionBudget=createAttentionBudget(),pointerPresence=createPointerPresence(),pokeRhythm=createPokeRhythm();
 const spritePreview=createSpritePreview({canvas:byId("atlasCanvas"),fallback:sprite});
+const celPlayer=createCelAnimator({video:byId("celVideo"),poster:byId("celPoster"),pixel:sprite,status:byId("celStatus")});
 
-let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null,explicitCaptionUntil=0;
+let lastActivity=Date.now(),lastState="",lastCaption="",typingTimes=[],simulatedTabs=0,manualNap=false,installPrompt=null,explicitCaptionUntil=0,explicitCelState=null;
 let pointerStart=null,pointerMoved=false,petPosition=50,lastClutterHuff=0,lastWander=0;
 const captions={
  idle:["The department of disapproval remains operational.","A perfectly adequate amount of nothing.","Monitoring the room. Against my better judgment."],
@@ -69,6 +71,8 @@ function applySettings(){
  byId("motionToggle").checked=preferences.reducedMotion;
  byId("idleSelect").value=String(preferences.idleSeconds);
  spritePreview.setReducedMotion(preferences.reducedMotion);
+ celPlayer.setReducedMotion(preferences.reducedMotion);
+ celPlayer.setQuiet(preferences.quiet);
 }
 function speak(msg,force=false){
  const now=Date.now();
@@ -84,7 +88,8 @@ function reaction(state,priority=80,duration=1600,message){
  if(message)speak(remarks.choose(state,message,now),true);
  byId("napLabel").textContent="Nap";
  if(state==="huffing")huffSound();
- tick();
+ explicitCelState=state;
+ try{tick();}finally{explicitCelState=null;}
 }
 function keyWindow(now=Date.now()){
  typingTimes=typingTimes.filter(t=>t<=now&&now-t<6000);
@@ -105,6 +110,7 @@ function tick(){
    }
  }
  if(next!=="wandering")stopPatrol();
+ const previousState=lastState;
  if(next!==lastState){
   renderState(next,{pet,sprite,stateLabel,sceneCaption},lastState);
   scene.dataset.mood=next;
@@ -113,6 +119,8 @@ function tick(){
   speak(choice);
  }
  spritePreview.setState(next);
+ if(next!==previousState||explicitCelState===next)
+   celPlayer.setState(next,{previous:previousState,explicit:explicitCelState===next,force:explicitCelState===next});
  byId("clock").textContent=date.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
 }
 function openDesk(){deskPanel.hidden=false;lastActivity=Date.now();typingInput.focus();speak("Your text stays here, briefly.",true)}
@@ -127,11 +135,11 @@ function doAction(action){
   case"huff":reaction("huffing",95,1600,"Hff. An official protest.");break;
   case"nap":
    manualNap=!manualNap;bus.clear();byId("napLabel").textContent=manualNap?"Wake":"Nap";
-   speak(manualNap?"I am not available for consultation.":"My break has been interrupted.",true);break;
+   speak(manualNap?"I am not available for consultation.":"My break has been interrupted.",true);explicitCelState=manualNap?"sleeping":"watching";break;
   case"desk":deskPanel.hidden?openDesk():closeDesk();break;
   case"settings":openSettings();break;
  }
- tick();
+ try{tick();}finally{explicitCelState=null;}
 }
 document.querySelectorAll("[data-action]").forEach(button=>button.addEventListener("click",()=>doAction(button.dataset.action)));
 byId("closeDesk").addEventListener("click",closeDesk);
@@ -147,11 +155,12 @@ typingInput.addEventListener("keydown",event=>{
 byId("closeSettings").addEventListener("click",()=>settingsDialog.close());
 byId("doneSettings").addEventListener("click",()=>settingsDialog.close());
 byId("soundToggle").addEventListener("change",event=>{preferences.sound=event.target.checked;saveSettings()});
-byId("quietToggle").addEventListener("change",event=>{preferences.quiet=event.target.checked;saveSettings()});
+byId("quietToggle").addEventListener("change",event=>{preferences.quiet=event.target.checked;applySettings();saveSettings()});
 byId("motionToggle").addEventListener("change",event=>{preferences.reducedMotion=event.target.checked;applySettings();saveSettings()});
 byId("idleSelect").addEventListener("change",event=>{preferences.idleSeconds=Number(event.target.value);saveSettings();tick()});
 byId("resetSettings").addEventListener("click",()=>{
  preferences={...defaults};resetSettings(localPreferences);applySettings();
+ celPlayer.disable();byId("celModeToggle").checked=false;byId("celClipControl").hidden=true;byId("celClipSelect").value="auto";
  byId("atlasPreviewToggle").checked=false;byId("atlasClipControl").hidden=true;
  spritePreview.deactivate();byId("atlasStatus").textContent="Preview off · original artwork retained.";
  speak("Settings have been returned to reason.",true);tick();
@@ -160,6 +169,10 @@ byId("atlasPreviewToggle").addEventListener("change",async event=>{
  if(!event.target.checked){
   spritePreview.deactivate();byId("atlasClipControl").hidden=true;
   byId("atlasStatus").textContent="Preview off · original artwork retained.";return;
+ }
+ if(celPlayer.enabled){
+  celPlayer.disable();byId("celModeToggle").checked=false;
+  byId("celClipControl").hidden=true;byId("celClipSelect").value="auto";
  }
  byId("atlasStatus").textContent="Loading unapproved sprite candidate…";
  try{
@@ -174,6 +187,18 @@ byId("atlasPreviewToggle").addEventListener("change",async event=>{
  }
 });
 byId("atlasClipSelect").addEventListener("change",event=>spritePreview.setClip(event.target.value));
+byId("celModeToggle").addEventListener("change",event=>{
+ if(event.target.checked){
+  spritePreview.deactivate();byId("atlasPreviewToggle").checked=false;
+  byId("atlasClipControl").hidden=true;
+  byId("atlasClipSelect").value="auto";byId("atlasStatus").textContent="Preview off · original artwork retained.";
+  celPlayer.enable();byId("pet").dataset.artMode="cel";byId("celClipControl").hidden=false;
+ }else{
+  celPlayer.disable();delete byId("pet").dataset.artMode;
+  byId("celClipControl").hidden=true;byId("celClipSelect").value="auto";
+ }
+});
+byId("celClipSelect").addEventListener("change",event=>celPlayer.setClip(event.target.value));
 function updateClutter(){
  byId("tabCount").textContent=String(simulatedTabs);
  const now=Date.now();
@@ -238,6 +263,7 @@ scene.addEventListener("pointermove",event=>{
 document.addEventListener("visibilitychange",()=>{
  const visible=!document.hidden;
  spritePreview.setVisible(visible);
+ celPlayer.setVisible(visible);
  if(!visible){stopPatrol();bus.clear();remarks.reset();pointerPresence.reset();pokeRhythm.reset();audio.suspend();}
  tick();
 });
@@ -252,4 +278,4 @@ if("serviceWorker"in navigator&&(location.protocol==="https:"||location.hostname
 applySettings();keyWindow();tick();
 let ticker=setInterval(tick,1100);
 document.addEventListener("visibilitychange",()=>{clearInterval(ticker);ticker=setInterval(tick,document.hidden?15000:1100);});
-window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);positionObserver?.disconnect();window.removeEventListener("resize",constrainPetPosition);spritePreview.dispose();audio.dispose();});
+window.addEventListener("pagehide",()=>{wipeDesk();clearInterval(ticker);positionObserver?.disconnect();window.removeEventListener("resize",constrainPetPosition);spritePreview.dispose();celPlayer.dispose();audio.dispose();});
