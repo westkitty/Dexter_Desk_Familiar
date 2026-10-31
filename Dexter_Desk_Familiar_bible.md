@@ -2,7 +2,7 @@
 
 This additive ledger records significant implementation decisions. It does not override `OPERATIONAL_STATE.md` (current verified operations), `docs/PRODUCT_BLUEPRINT.md` (product purpose) or source/tests (behavioral truth).
 
-## 2026-10-31 — Rare patio patrol and independently proven Pages delivery
+## 2026-10-31 — Rare desk patrol and independently proven Pages delivery
 
 ### Repository and authority
 - Allowed repository: `westkitty/Dexter_Desk_Familiar`, public at start; independent of all WESTCAT sibling projects.
