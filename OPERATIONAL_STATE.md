@@ -146,3 +146,10 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 ### Final independent browser regression receipt
 
 - GitHub Chromium/WebKit browser-smoke run `41218938598` completed **SUCCESS** for native code commit `476b3cb207c2410eaaa1a89f19f69897b5093602`, alongside GitHub source check `41218938543` and macOS Electron bundle check `41218938554`, all **SUCCESS**. These do not substitute for physical target-Mac click-through or signed installation.
+
+## 2026-10-31 — Transparent-pixel hit testing and review artifact
+
+- Alpha-aware desktop hit-test helper and five new regression fixtures integrated into isolated `desktop/`, raising desktop unit total to 11/11. Big Mac Electron smoke confirmed `opaqueCaptured=true` and `transparentReleased=true` with programmatic pointer movement. Real pointer passthrough over another application is still untested.
+- GitHub Actions macOS run `41223492066` completed SUCCESS and uploaded artifact `Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-80` (ID `13050069701`, 14-day retention through Nov 14). Downloaded outer ZIP digest `b671b211f483c6e31414b2bcc40746cb5071bd1d0cd5c45e52abf19d7aab3197`; extracted inner app ZIP SHA-256 `2cdaa6c780469e4606d9e9893a787fda58fbb382ae5e15f77d1bbe384b7c50d7`. Both archive integrity and inner SHA checksum verified in chat container. Direct conversation downloadable artifact exists. New `desktop/MACBOOK_QA.md` provides acceptance steps.
+- Smoke mode now uses temporary isolated Chromium profile, preventing tests from altering real settings. Main web/PWA remains untouched; PR #9 remains DRAFT. No signing/notarization, MacBook physical test or deployment claimed.
+- Drive archive path `GPT/Dexter_Desk_Familiar/ARCHIVE/2026-10-31` created; upload of the review ZIP failed because the Drive connector rejects the GitHub file reference schema (object/string mismatch). Do not claim Drive archival until a provider-confirmed write.
