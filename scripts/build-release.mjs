@@ -5,7 +5,7 @@ import {fileURLToPath} from "node:url";
 const root=resolve(fileURLToPath(new URL("..",import.meta.url)));
 const dist=join(root,"dist");
 const files=["index.html","styles.css","app.js","sw.js","manifest.webmanifest",
- "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs","src/interaction.mjs","src/remarks.mjs","src/attention.mjs","src/presence.mjs","src/animation.mjs",
+ "src/behavior.mjs","src/observations.mjs","src/director.mjs","src/renderer.mjs","src/audio.mjs","src/settings.mjs","src/interaction.mjs","src/remarks.mjs","src/attention.mjs","src/presence.mjs","src/animation.mjs","src/locomotion.mjs",
  "assets/dexter-sit-96.png","assets/dexter-stand-96.png","assets/dexter-rest-96.png","assets/dexter-snes-32-candidate.png",
  "icons/icon-192.png","icons/icon-512.png"];
 const sizes={"assets/dexter-sit-96.png":96,"assets/dexter-stand-96.png":96,"assets/dexter-rest-96.png":96,
@@ -37,7 +37,7 @@ for(const path of files){
 }
 await writeFile(join(dist,".nojekyll"),"");
 const report={project:"Dexter Desk Familiar",version:JSON.parse(await readFile(join(root,"package.json"),"utf8")).version,
- files:entries,totalBytes:total};
+ files:entries,totalBytes:total,sourceCommit:/^[0-9a-f]{40}$/i.test(process.env.GITHUB_SHA??"")?process.env.GITHUB_SHA:null};
 await writeFile(join(dist,"release-manifest.json"),JSON.stringify(report,null,2)+"\n");
 if(total+(await stat(join(dist,"release-manifest.json"))).size>budget)throw Error("Final web release exceeds 2 MiB");
 console.log("Built audited Dexter static bundle: "+files.length+" files / "+total+" bytes");

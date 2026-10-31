@@ -9,6 +9,7 @@ import{createRemarks}from"./src/remarks.mjs";
 import{createAttentionBudget}from"./src/attention.mjs";
 import{createPointerPresence,createPokeRhythm}from"./src/presence.mjs";
 import{createSpritePreview}from"./src/animation.mjs";
+import{planPatrol}from"./src/locomotion.mjs";
 const byId=id=>document.getElementById(id);
 const scene=byId("scene"),pet=byId("pet"),sprite=byId("sprite"),thought=byId("thought"),stateLabel=byId("stateLabel"),sceneCaption=byId("sceneCaption");
 const deskPanel=byId("deskPanel"),typingInput=byId("typingInput"),typingRate=byId("typingRate"),settingsDialog=byId("settingsDialog");
@@ -36,9 +37,33 @@ const captions={
 };
 const labels={idle:"UNIMPRESSED",watching:"OBSERVING",working:"SUPERVISING",judging:"JUDGING",wandering:"PATROLLING",resting:"WITHDRAWN",sleeping:"ASLEEP",huffing:"DISAPPROVING",eating:"APPEASED"};
 const images={idle:"sit",watching:"sit",working:"stand",judging:"sit",wandering:"stand",resting:"rest",sleeping:"rest",huffing:"sit",eating:"stand"};
+function stopPatrol(keepCurrent=false){
+ if(pet.dataset.patrolling!=="true")return;
+ if(keepCurrent){
+  const rect=pet.getBoundingClientRect(),habitat=scene.getBoundingClientRect();
+  if(habitat.width>0){
+   const visual=(rect.left+rect.width/2-habitat.left)/habitat.width*100;
+   petPosition=safePosition(visual,habitat.width,rect.width);
+  }
+ }
+ delete pet.dataset.patrolling;
+ pet.style.removeProperty("--patrol-home");
+ pet.style.removeProperty("--patrol-target");
+ pet.style.left=petPosition+"%";
+}
+function startPatrol(){
+ if(preferences.reducedMotion||document.hidden)return false;
+ const route=planPatrol({anchor:petPosition,sceneWidth:scene.clientWidth,petWidth:pet.clientWidth});
+ if(!route)return false;
+ pet.style.setProperty("--patrol-home",route.home+"%");
+ pet.style.setProperty("--patrol-target",route.target+"%");
+ pet.dataset.patrolling="true";
+ return true;
+}
 function saveSettings(){writeSettings(localPreferences,preferences)}
 function applySettings(){
  document.body.classList.toggle("reduce-motion",preferences.reducedMotion);
+ if(preferences.reducedMotion)stopPatrol();
  byId("soundToggle").checked=preferences.sound;
  byId("quietToggle").checked=preferences.quiet;
  byId("motionToggle").checked=preferences.reducedMotion;
@@ -54,6 +79,7 @@ function speak(msg,force=false){
 }
 function huffSound(){audio.play("huff")}
 function reaction(state,priority=80,duration=1600,message){
+ stopPatrol(true);
  const now=Date.now();bus.publish(state,priority,duration,now);lastActivity=now;manualNap=false;
  if(message)speak(remarks.choose(state,message,now),true);
  byId("napLabel").textContent="Nap";
@@ -75,9 +101,10 @@ function tick(){
    if(keys>=24) next="judging";
    else if(attentionBudget.eligible({now,visible:context.visible,quiet:preferences.quiet,sleeping:next==="sleeping"||next==="resting",deskOpen:!deskPanel.hidden,settingsOpen:settingsDialog.open,reducedMotion:preferences.reducedMotion})){
      const routine=chooseAmbientRoutine({state:next,idleMs:now-lastActivity,now,lastRoutineAt:lastWander,visible:context.visible,manualNap,deskOpen:!deskPanel.hidden});
-     if(routine&&attentionBudget.record(now)){bus.publish(routine.state,12,routine.ttlMs,now);lastWander=now;next=routine.state;}
+     if(routine&&attentionBudget.record(now)){bus.publish(routine.state,12,routine.ttlMs,now);lastWander=now;next=routine.state;if(next==="wandering")startPatrol();}
    }
  }
+ if(next!=="wandering")stopPatrol();
  if(next!==lastState){
   renderState(next,{pet,sprite,stateLabel,sceneCaption},lastState);
   scene.dataset.mood=next;
@@ -93,6 +120,7 @@ function wipeDesk(){typingInput.value="";typingTimes=[];keyWindow()}
 function closeDesk(){wipeDesk();deskPanel.hidden=true;pet.focus();tick()}
 function openSettings(){applySettings();settingsDialog.showModal()}
 function doAction(action){
+ stopPatrol(true);
  lastActivity=Date.now();
  switch(action){
   case"treat":reaction("eating",95,2000,"Very well. One treat.");break;
@@ -162,7 +190,7 @@ document.addEventListener("keydown",event=>{
  else if(event.key==="d"||event.key==="D")doAction("desk");
 });
 pet.addEventListener("pointerdown",event=>{
- if(event.button!==0)return;pointerStart={x:event.clientX,y:event.clientY,position:petPosition};pointerMoved=false;pet.setPointerCapture(event.pointerId);
+ if(event.button!==0)return;stopPatrol(true);pointerStart={x:event.clientX,y:event.clientY,position:petPosition};pointerMoved=false;pet.setPointerCapture(event.pointerId);
 });
 pet.addEventListener("pointermove",event=>{
  if(!pointerStart)return;
@@ -192,6 +220,7 @@ pet.addEventListener("keydown",event=>{
  if(event.key==="Enter"||event.key===" "){event.preventDefault();reaction("huffing",90,1700,"This meeting was unnecessary.")}
 });
 function constrainPetPosition(){
+ stopPatrol(true);
  petPosition=safePosition(petPosition,scene.getBoundingClientRect().width,pet.getBoundingClientRect().width);
  pet.style.left=petPosition+"%";
 }
@@ -209,7 +238,7 @@ scene.addEventListener("pointermove",event=>{
 document.addEventListener("visibilitychange",()=>{
  const visible=!document.hidden;
  spritePreview.setVisible(visible);
- if(!visible){bus.clear();remarks.reset();pointerPresence.reset();pokeRhythm.reset();audio.suspend();}
+ if(!visible){stopPatrol();bus.clear();remarks.reset();pointerPresence.reset();pokeRhythm.reset();audio.suspend();}
  tick();
 });
 window.addEventListener("online",()=>{byId("connectionText").textContent="LOCAL";tick()});
