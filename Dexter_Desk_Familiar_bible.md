@@ -41,3 +41,22 @@ This additive ledger records significant implementation decisions. It does not o
 - User expressly authorized merge and GitHub Pages deployment of the approved eight-clip cel-shaded mode. PR #8 merged into `main` at `e9eed54e4932f19c211199502c61c77fe2b1dbfa`.
 - Initial Pages upload/deploy succeeded but the last public-byte verification rejected legitimate nested `.webm` paths: run `41214820461`. The verifier was out of sync with the release builder, not the clip artifacts.
 - The bounded verifier correction maintains strict same-origin, filename, content-hash, total-size, and excluded-file checks while accepting approved nested media paths. Final public deployment truth must come from the hotfix run and independent HTTPS evidence, not from this planning record.
+
+## 2026-10-31 — Independent native Dexter Desktop edition
+
+### Accepted change of product scope
+- User directed the browser Dexter to gain WESTCAT-like desktop-overlay functionality **without turning the original PWA into WESTCAT**. The existing web version is still an independently useful offline product. `docs/PRODUCT_BLUEPRINT.md` now reflects two independent editions.
+- Target is only `westkitty/Dexter_Desk_Familiar`, draft PR #9 `feature/desktop-overlay-v1-20261031`. Do not modify the similarly named WESTCAT repositories or rely on them for runtime assets.
+- Electron/Chromium native window host chosen over a speculative WKWebView shortcut for proven transparent WebM playback. Keep desktop-only files under `desktop/` and stage the original web behavior engine without editing shipped PWA files.
+
+### Implemented desktop mechanism
+- Native transparent frameless window, topmost preference, tray recovery, local position/size/opacity persistence, opt-in click-through control, draggable on-screen familiar, right-click actions, optional pixel/SNES/cel visual modes, quiet toggle and native app icon.
+- `dexter://app` local protocol replaces initial file-fetch design after the first actual Electron launch failed. It serves approved local assets with MIME and video byte ranges, denies private source files and network routes, preserves strict page CSP and sandboxed preload IPC.
+- Desktop staged copy disables the web habitat's in-scene drag handlers and instead routes native pointer gestures to existing Dexter reactions; actual web source remains byte-for-byte unmodified.
+- Automated macOS arm64 package uses locked Electron 45.2.1 and @electron/packager 20.3.0, builds a `Dexter.icns` from the existing icon PNG, and runs a built-app smoke check in GitHub Actions.
+
+### Evidence and remaining controls
+- Big Mac macOS arm64 and GitHub macOS Actions independently passed packaging and actual Electron bundled startup smoke (Actions `41218157904` and `41218520502`). Big Mac observed 96px art, real poke/treat semantics, transparent cel video decoding, IPC movement of the native window, tray creation, correct local WebM range 206, private module request 403 and transparent capture-corner alpha.
+- The original PWA source tests and Pages release checks remained green: 66 unit/lifecycle tests, 2 release tests, 36 allowed public files.
+- **Not yet proven:** human mouse pass-through above other software, MacBook installation and login/quit recovery, multiple-monitor handling on actual hardware, accessibility/VoiceOver, long-session performance, app signing, notarization, and distribution to the target MacBook.
+- Keep PR #9 draft until necessary release gates are verified. Do not merge merely because packaged smoke is green or imply that unsigned local binary is a public release.
