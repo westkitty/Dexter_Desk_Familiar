@@ -1,8 +1,8 @@
 // All paths are relative to the service worker's own install scope.
 // Bump CACHE when any bundled shell asset changes.
-const CACHE="dexter-desk-familiar-v5-patrol";
+const CACHE="dexter-desk-familiar-v6-cel-preview";
 const PREFIX="dexter-desk-familiar-";
-const SHELL=["./","./index.html","./styles.css","./app.js","./src/behavior.mjs","./src/observations.mjs","./src/director.mjs","./src/renderer.mjs","./src/audio.mjs","./src/settings.mjs","./src/interaction.mjs","./src/remarks.mjs","./src/attention.mjs","./src/presence.mjs","./src/animation.mjs","./src/locomotion.mjs","./manifest.webmanifest","./assets/dexter-sit-96.png","./assets/dexter-stand-96.png","./assets/dexter-rest-96.png","./assets/dexter-snes-32-candidate.png","./icons/icon-192.png","./icons/icon-512.png"];
+const SHELL=["./","./index.html","./styles.css","./app.js","./src/behavior.mjs","./src/observations.mjs","./src/director.mjs","./src/renderer.mjs","./src/audio.mjs","./src/settings.mjs","./src/interaction.mjs","./src/remarks.mjs","./src/attention.mjs","./src/presence.mjs","./src/animation.mjs","./src/locomotion.mjs","./manifest.webmanifest","./assets/dexter-sit-96.png","./assets/dexter-stand-96.png","./assets/dexter-rest-96.png","./assets/dexter-snes-32-candidate.png","./src/cel-animation.mjs","./assets/cel-shaded/clips/head_tilt.webm","./assets/cel-shaded/clips/lie_down.webm","./assets/cel-shaded/clips/sit_down.webm","./assets/cel-shaded/clips/sleep_loop.webm","./assets/cel-shaded/clips/slow_blink.webm","./assets/cel-shaded/clips/stretch.webm","./assets/cel-shaded/clips/tail_wag.webm","./assets/cel-shaded/clips/treat_lick.webm","./assets/cel-shaded/posters/slow_blink_start.png","./assets/cel-shaded/posters/stretch_start.png","./assets/cel-shaded/posters/lie_down_end.png","./assets/cel-shaded/posters/sleep_loop_start.png","./icons/icon-192.png","./icons/icon-512.png"];
 const ALLOWED=new Set(SHELL.map(path=>new URL(path,self.location.href).href));
 
 self.addEventListener("install",event=>{
