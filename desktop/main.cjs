@@ -204,10 +204,14 @@ app.whenReady().then(()=>{
     let pathname;
     try {pathname=decodeURIComponent(url.pathname);} catch {return new Response('Bad path',{status:400});}
     if (pathname.includes('\\\\') || pathname.includes('\\0')) return new Response('Forbidden',{status:403});
-    const relative=pathname.replace(/^\\/+/, '');
+    const relative=pathname.startsWith('/') ? pathname.slice(1) : pathname;
     const allowed=['index.html','app.js','styles.css','overlay.css','renderer.js','manifest.webmanifest'];
-    if (!allowed.includes(relative) && !/^(?:src|assets|icons)\\/[A-Za-z0-9_./-]+$/.test(relative))
-      return new Response('Forbidden',{status:403});
+    const folder=relative.slice(0,relative.indexOf('/'));
+    const leaf=relative.slice(relative.indexOf('/')+1);
+    const safeChars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-';
+    const isAsset=['src','assets','icons'].includes(folder) && leaf.length>0 &&
+      [...leaf].every(character=>safeChars.includes(character));
+    if (!allowed.includes(relative) && !isAsset) return new Response('Forbidden',{status:403});
     const requested=path.resolve(ROOT,relative);
     if (!isWithinRoot(ROOT,requested)) return new Response('Forbidden',{status:403});
     let data;
@@ -226,7 +230,7 @@ app.whenReady().then(()=>{
       'Accept-Ranges':'bytes','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
     const requestedRange=request.headers.get('range');
     if (requestedRange) {
-      const match=/^bytes=(\\d*)-(\\d*)$/.exec(requestedRange);
+      const match=new RegExp('^bytes=([0-9]*)-([0-9]*)$').exec(requestedRange);
       if(!match || (!match[1] && !match[2]) || data.length===0)
         return new Response(null,{status:416,headers:{...headers,'Content-Range':'bytes */'+data.length}});
       let from,end;
