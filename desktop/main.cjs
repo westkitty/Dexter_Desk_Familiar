@@ -1,8 +1,8 @@
 'use strict';
-const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, net} = require('electron');
+const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const {pathToFileURL} = require('node:url');
+
 const {sanitizeSettings, dimensions, clampPosition, shouldIgnoreMouse, isWithinRoot} = require('./window-state.cjs');
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
@@ -198,14 +198,46 @@ app.whenReady().then(()=>{
   load();
   protocol.handle('dexter', request=>{
     let url;
-    try{url=new URL(request.url);}catch{return new Response('Bad URL',{status:400});}
-    if(url.hostname!=='app' || url.username || url.password || url.port)return new Response('Forbidden',{status:403});
+    try {url=new URL(request.url);} catch {return new Response('Bad URL',{status:400});}
+    if (url.hostname !== 'app' || url.username || url.password || url.port ||
+        url.search || url.hash) return new Response('Forbidden',{status:403});
     let pathname;
-    try{pathname=decodeURIComponent(url.pathname);}catch{return new Response('Bad path',{status:400});}
-    if(pathname.includes('\\\\') || pathname.includes('\\0'))return new Response('Forbidden',{status:403});
-    const requested=path.resolve(ROOT,'.'+pathname);
-    if(!isWithinRoot(ROOT,requested))return new Response('Forbidden',{status:403});
-    return net.fetch(pathToFileURL(requested).toString());
+    try {pathname=decodeURIComponent(url.pathname);} catch {return new Response('Bad path',{status:400});}
+    if (pathname.includes('\\\\') || pathname.includes('\\0')) return new Response('Forbidden',{status:403});
+    const relative=pathname.replace(/^\\/+/, '');
+    const allowed=['index.html','app.js','styles.css','overlay.css','renderer.js','manifest.webmanifest'];
+    if (!allowed.includes(relative) && !/^(?:src|assets|icons)\\/[A-Za-z0-9_./-]+$/.test(relative))
+      return new Response('Forbidden',{status:403});
+    const requested=path.resolve(ROOT,relative);
+    if (!isWithinRoot(ROOT,requested)) return new Response('Forbidden',{status:403});
+    let data;
+    try {
+      const canonical=fs.realpathSync.native(requested);
+      if (!isWithinRoot(fs.realpathSync.native(ROOT),canonical) || !fs.statSync(canonical).isFile())
+        return new Response('Forbidden',{status:403});
+      data=fs.readFileSync(canonical);
+    } catch {return new Response('Not found',{status:404});}
+    const ext=path.extname(relative);
+    const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8',
+      '.mjs':'text/javascript; charset=utf-8','.cjs':'text/javascript; charset=utf-8',
+      '.css':'text/css; charset=utf-8','.png':'image/png','.webm':'video/webm',
+      '.webmanifest':'application/manifest+json','.json':'application/json'};
+    const headers={'Content-Type':types[ext]||'application/octet-stream',
+      'Accept-Ranges':'bytes','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+    const requestedRange=request.headers.get('range');
+    if (requestedRange) {
+      const match=/^bytes=(\\d*)-(\\d*)$/.exec(requestedRange);
+      if(!match || (!match[1] && !match[2]) || data.length===0)
+        return new Response(null,{status:416,headers:{...headers,'Content-Range':'bytes */'+data.length}});
+      let from,end;
+      if (!match[1]) {const suffix=Number(match[2]);from=Math.max(0,data.length-suffix);end=data.length-1;}
+      else {from=Number(match[1]);end=match[2]?Math.min(data.length-1,Number(match[2])):data.length-1;}
+      if (!Number.isSafeInteger(from)||!Number.isSafeInteger(end)||from> end||from>=data.length)
+        return new Response(null,{status:416,headers:{...headers,'Content-Range':'bytes */'+data.length}});
+      headers['Content-Range']='bytes '+from+'-'+end+'/'+data.length;
+      return new Response(data.subarray(from,end+1),{status:206,headers});
+    }
+    return new Response(data,{status:200,headers});
   });
   setupIpc();
   createWindow();
