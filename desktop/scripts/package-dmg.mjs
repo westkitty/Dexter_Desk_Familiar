@@ -11,7 +11,7 @@ const desktop = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const out = path.join(desktop, 'out');
 const appName = 'Dexter Desk Familiar.app';
 const sourceApp = path.join(out, 'Dexter Desk Familiar-darwin-arm64', appName);
-const dmgName = 'Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg';
+const dmgName = 'Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg';
 const dmgPath = path.join(out, dmgName);
 const checksumPath = dmgPath + '.sha256';
 const identifier = 'dev.stinkyweasel.dexterdesk';
@@ -94,4 +94,4 @@ const digest = sha(dmgPath);
 fs.writeFileSync(checksumPath,digest+'  '+dmgName+'\n',{flag:'wx'});
 console.log('Unsigned macOS review DMG: '+dmgPath);
 console.log('SHA-256: '+digest);
-console.log('Not Developer ID signed or notarized. Target-device pointer tests remain pending.');
+console.log('Ad-hoc signature verified. This app is NOT Developer ID signed or notarized; Gatekeeper may reject it until explicitly approved by the user.');
