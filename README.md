@@ -2,7 +2,7 @@
 
 A small, opinionated, privacy-first browser familiar starring **Dexter**. Three reference-derived pixel poses and a semantic behavior engine. He is present first; the UI stays secondary.
 
-**Status:** v0.3.1 live PWA preview, tested with staged source and browser verification, not a native desktop overlay. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
+**Status:** v0.3.1 live PWA preview, tested with staged source and browser verification. A separate macOS desktop edition (0.2.0-alpha.1) is described at the end of this file. This repository is a **new, separate project** and does not contain copied code from the Westcat projects.
 
 ## Run locally
 
@@ -29,7 +29,7 @@ The app itself is static. \`index.html\` also opens for a quick visual preview, 
 
 **No analytics, network APIs, third-party dependencies, global input monitoring, or AI services.** Settings alone persist in localStorage; offline app assets reside in the browser's Cache Storage by necessity. Session counters, simulated tabs and transient behavior state live in memory. The app does not read the contents of your actual browser tabs or activity outside its own window. A browser may still check for service worker updates when it has connectivity.
 
-A PWA cannot make itself an always-on-top transparent desktop companion or inspect other apps. Such features would require a distinct native/extension project with clear user permissions and separate review.
+A PWA cannot make itself an always-on-top transparent desktop companion or inspect other apps. The always-on-top companion is the separate, explicitly installed desktop edition (see below), which still does not inspect other apps.
 
 ## Architecture
 
@@ -89,8 +89,23 @@ Select "Follow state" or inspect any one clip directly. The renderer enforces mu
 
 The eight-clip source reached `main` via PR #8. Current hosted Pages revision must be checked separately against its release manifest; a merge is not a live-deployment certificate. Native Safari, physical mobile accessibility, cross-version service-worker rollback, and long-session performance remain release gates. See docs/CEL_SHADED_ANIMATION.md.
 
-## Native Dexter Desktop — isolated macOS alpha
+## Dexter Desktop (macOS) — 0.2.0-alpha.1, on `main`
 
-The additional `desktop/` source in draft [PR #9](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) is a **separate macOS desktop edition** using the existing character engine, not a replacement for the browser/PWA edition. It supplies a transparent floating window, optional always-on-top and click-through controls, drag, local position/size/opacity, flip, context actions, tray recovery, native icon and approved animation playback.
+A separate macOS desktop edition of Dexter lives in `desktop/`. He floats in a transparent window beside your work and runs the same behavior engine and approved art as the web edition, which it does not replace or modify. It was merged to `main` on 2026-11-01 through PRs #10 and #9.
 
-**0.2.0-alpha.1 (draft [PR #10](https://github.com/westkitty/Dexter_Desk_Familiar/pull/10), stacked on #9)** brings the desktop edition to WestCat parity. It adds a conversation panel, *opt-in* local AI (an Ollama-compatible server on this Mac by default, nothing downloaded), *opt-in* on-device speech, *opt-in* check-ins in Dexter's voice, a settings and diagnostics window, menu-bar Restore, and recovery from display changes. Everything new is off by default, and none of it applies to the web edition. macOS CI builds an ad-hoc-signed DMG, verifies every nested signature, and launches and relaunches the copied-out app. The app is **not Developer ID signed or notarized**. Physical click-through, VoiceOver and long-session checks on the target MacBook are still open. See `desktop/README.md`, `docs/WESTCAT_PARITY_MATRIX.md` and `docs/DESKTOP_RELEASE_READINESS.md`.
+**What it does:** transparent always-on-top window; only Dexter's visible pixels catch clicks; drag, scale, opacity and flip; a menu-bar icon with Show, Hide, Restore, Talk, Settings and Quit; recovery when a display changes; preferences that survive relaunch. Optional, and all off by default: a conversation panel with a local Ollama-compatible AI (loopback only unless you allow another host; nothing downloaded), on-device speech, and check-ins in Dexter's voice. A settings window includes diagnostics and a self-audit. There is no microphone and no keyboard, screen or activity monitoring.
+
+### Download the current DMG
+
+1. In this repository go to **Actions → Dexter desktop macOS alpha checks**, open the latest successful run on `main`, and download the `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-*` artifact.
+2. Current build: run [41282357890](https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41282357890) on `main` @ `30821b7`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-122` (kept 90 days).
+   - File: `Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg`
+   - SHA-256: `0b3332ce3a7142211d58f55d7811398bf478f5cec37bbd0116aa6aff35704031`
+3. Verify with `shasum -a 256 -c Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg.sha256`, open the DMG, drag the app to **Applications**, and eject.
+4. The app is ad-hoc signed for integrity only. It is **not Developer ID signed and not notarized**, so macOS asks you to approve it once under **System Settings → Privacy & Security → Open Anyway**. Do not disable Gatekeeper.
+
+CI checked this build on a macOS runner: deep strict signature checks, including every nested helper; a full app test of the packaged app and of the copy made from the DMG; quit and relaunch with restored preferences; and the SHA-256. On Linux, a syscall audit found no network traffic except to the test's own local model server.
+
+**Still to verify on a real MacBook** (see `desktop/MACBOOK_QA.md`): clicking through the empty space around Dexter onto other apps, real dragging, keyboard focus while typing elsewhere, two monitors, VoiceOver, and a 60-minute run on an M1 Air.
+
+More: `desktop/README.md` (usage, privacy, troubleshooting) · `desktop/ARCHITECTURE.md` · `docs/WESTCAT_PARITY_MATRIX.md` · `docs/DESKTOP_RELEASE_READINESS.md`.

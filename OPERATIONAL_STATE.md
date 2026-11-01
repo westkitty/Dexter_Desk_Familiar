@@ -199,3 +199,11 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - **Unverified (needs a physical MacBook, `desktop/MACBOOK_QA.md`):** real pointer click-through above other apps, real drag, keyboard focus while typing elsewhere, multi-monitor hardware, sleep/wake on hardware, login item, Gatekeeper first launch, VoiceOver, Reduce Motion, Increase Contrast, 60-minute M1 resource soak, real Ollama and real Piper.
 - **Blocked:** Developer ID signing and notarization (no credentials). The DMG is ad-hoc signed for integrity only. Nothing bypasses Gatekeeper or strips quarantine.
 - **Not done (needs separate authorization):** merging #10 or #9, publishing a GitHub Release, any Pages deployment.
+
+## 2026-11-01 — Desktop 0.2.0-alpha.1 merged to main (owner-authorized)
+
+- **Authority:** the owner explicitly asked to "merge the branches onto main" and update the DMG.
+- **Merges:** PR #10 → `feature/desktop-overlay-v1-20261031` (merge commit `70be987`) after CI passed on `4c94a60`. PR #9 → `main` (merge commit `30821b7`) after CI passed on `70be987`. No force-push, no branches deleted.
+- **On `main` @ `30821b7`, all green:** desktop macOS run 41282357890 (signature verifier, packaged smoke, DMG round trip with relaunch, SHA-256, upload), desktop Linux runtime with egress audit, Verify 41282357891, Browser smoke 41282357910, and Pages deploy 41282357893 (success, including the post-deploy exact-byte verifier). The web files are byte-identical to the previous deployment, so the public site's content did not change.
+- **Current DMG:** `Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg`, SHA-256 `0b3332ce3a7142211d58f55d7811398bf478f5cec37bbd0116aa6aff35704031`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-122` (ID 13073621792, 90-day retention). This supersedes the PR-built `00e0251f…` artifact. The workflow now builds and keeps a DMG for every desktop change pushed to `main`.
+- **Still open:** physical MacBook QA (`desktop/MACBOOK_QA.md`) and Developer ID signing and notarization (blocked on credentials). No GitHub Release has been published.
