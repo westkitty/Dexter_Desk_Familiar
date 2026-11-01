@@ -80,8 +80,10 @@ Date: 2026-11-01. Branch `ccr-465acaaa-d6o3hc`, draft PR #10, stacked on draft P
 
 | Step | Status | Needs |
 |---|---|---|
-| Review PR #10 (stacked on #9) | Ready for review | Owner |
+| Review PR #10 (stacked on #9) | Merged | — |
 | Physical QA A–C on the target MacBook | Not done | Owner, with the CI DMG artifact |
-| Merge #10 into #9's branch, then #9 into `main` | Not authorized | Separate explicit authorization |
+| Merge #10 into #9's branch, then #9 into `main` | **Done 2026-11-01** at the owner's request (`70be987`, `30821b7`) | — |
 | Public release / notarized build | Blocked | Developer ID credentials and authorization |
 | GitHub Pages | Unaffected | Nothing; the web edition is unchanged |
+
+**Current DMG (built on `main` @ `30821b7`, run 41282357890):** SHA-256 `0b3332ce3a7142211d58f55d7811398bf478f5cec37bbd0116aa6aff35704031`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-122`. It supersedes the PR artifact listed above.
