@@ -89,19 +89,19 @@ Select "Follow state" or inspect any one clip directly. The renderer enforces mu
 
 The eight-clip source reached `main` via PR #8. Current hosted Pages revision must be checked separately against its release manifest; a merge is not a live-deployment certificate. Native Safari, physical mobile accessibility, cross-version service-worker rollback, and long-session performance remain release gates. See docs/CEL_SHADED_ANIMATION.md.
 
-## Dexter Desktop (macOS) — 0.2.0-alpha.1 on `main`; 0.3.0-alpha.1 in PR #12
+## Dexter Desktop (macOS) — 0.3.0-alpha.1, on `main`
 
-A separate macOS desktop edition of Dexter lives in `desktop/`. He floats in a transparent window beside your work and runs the same behavior engine and approved art as the web edition, which it does not replace or modify. Version 0.2.0 was merged to `main` on 2026-11-01 through PRs #10 and #9. Version 0.3.0 (draft PR #12) adds the remaining WestCat features: modes, sessions, an inspector, notes, a check-in editor, push-to-talk, a shortcut, and more. All of them are optional.
+A separate macOS desktop edition of Dexter lives in `desktop/`. He floats in a transparent window beside your work and runs the same behavior engine and approved art as the web edition, which it does not replace or modify. Version 0.2.0 was merged on 2026-11-01 (PRs #10 and #9); 0.3.0 (PR #12) added the remaining WestCat features: modes, sessions, an inspector, notes, a check-in editor, push-to-talk, a shortcut and more, all optional. See `desktop/README.md` for the full list.
 
 **What it does:** transparent always-on-top window; only Dexter's visible pixels catch clicks; drag, scale, opacity and flip; a menu-bar icon with Show, Hide, Restore, Talk, Settings and Quit; recovery when a display changes; preferences that survive relaunch. Optional, and all off by default: a conversation panel with a local Ollama-compatible AI (loopback only unless you allow another host; nothing downloaded), on-device speech, and check-ins in Dexter's voice. A settings window includes diagnostics and a self-audit. There is no microphone and no keyboard, screen or activity monitoring.
 
 ### Download the current DMG
 
 1. In this repository go to **Actions → Dexter desktop macOS alpha checks**, open the latest successful run on `main`, and download the `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-*` artifact.
-2. Current build: run [41282357890](https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41282357890) on `main` @ `30821b7`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-122` (kept 90 days).
-   - File: `Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg`
-   - SHA-256: `0b3332ce3a7142211d58f55d7811398bf478f5cec37bbd0116aa6aff35704031`
-3. Verify with `shasum -a 256 -c Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg.sha256`, open the DMG, drag the app to **Applications**, and eject.
+2. Current build: run [41285416335](https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41285416335) on `main` @ `ec15821`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-125` (kept 90 days).
+   - File: `Dexter_Desk_Familiar_0.3.0-alpha.1_macOS_arm64_adhoc.dmg`
+   - SHA-256: `4fc0716ec7e07873a7e58af4f74564ea5e3bbfa373d32bf0227d22a78e10e104`
+3. Verify with `shasum -a 256 -c Dexter_Desk_Familiar_0.3.0-alpha.1_macOS_arm64_adhoc.dmg.sha256`, open the DMG, drag the app to **Applications**, and eject.
 4. The app is ad-hoc signed for integrity only. It is **not Developer ID signed and not notarized**, so macOS asks you to approve it once under **System Settings → Privacy & Security → Open Anyway**. Do not disable Gatekeeper.
 
 CI checked this build on a macOS runner: deep strict signature checks, including every nested helper; a full app test of the packaged app and of the copy made from the DMG; quit and relaunch with restored preferences; and the SHA-256. On Linux, a syscall audit found no network traffic except to the test's own local model server.

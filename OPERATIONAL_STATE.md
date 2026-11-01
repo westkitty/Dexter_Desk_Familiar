@@ -222,3 +222,10 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
   - the notes firewall was verified closed and open against the fake model.
 - **Packaging change:** `NSMicrophoneUsageDescription` and `LSMinimumSystemVersion` 12.0 are added through `desktop/build/Info.extend.plist`, and `verify-macos.mjs` now requires the microphone string. macOS CI results are recorded on PR #12.
 - **Physical-unverified:** real microphone capture and the macOS permission prompt, the shortcut on macOS, notifications, every-Space and full-screen behavior, plus all earlier physical items.
+
+## 2026-11-01 — 0.3.0-alpha.1 merged to main; branch cleanup (owner: "merge all branches onto main")
+
+- **Merge:** PR #12 → `main` at `ec15821`, after CI passed on `9e456ba`. On `main`, all four workflows passed: desktop macOS 41285416335, Verify 41285416259, Browser smoke 41285416283, and Pages deploy 41285416226 (web bytes unchanged).
+- **Current DMG:** `Dexter_Desk_Familiar_0.3.0-alpha.1_macOS_arm64_adhoc.dmg`, SHA-256 `4fc0716ec7e07873a7e58af4f74564ea5e3bbfa373d32bf0227d22a78e10e104`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-125` (ID 13075635408, 90 days). This supersedes the earlier `0b3332ce…` and PR-built artifacts.
+- **Branches:** 11 remote branches have no commits outside `main`. Deleting them was refused by this session's safety policy, so it was not done; the owner can delete them or allow it.
+- **Deliberately not merged:** `uplift/presence-cadence-20261029`. Its one commit (`5478a36`) conflicts in 20 files, including `sw.js` and `app.js`; it carries the obsolete service worker this file already forbids merging, and its useful parts were superseded by PR #6. It was left untouched for the owner to archive or delete.
