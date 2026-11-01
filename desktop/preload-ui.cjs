@@ -4,7 +4,7 @@
 const {contextBridge, ipcRenderer} = require('electron');
 
 const INVOKE = new Set(['settings:get', 'settings:set', 'settings:reset', 'window:restore', 'window:reset-position', 'window:hide-self',
-  'ai:test', 'chat:history', 'chat:send', 'chat:cancel', 'chat:clear', 'chat:open-settings',
+  'ai:test', 'ai:models', 'chat:history', 'chat:send', 'chat:cancel', 'chat:clear', 'chat:open-settings', 'chat:set-model',
   'tts:test', 'tts:stop', 'piper:check', 'piper:probe', 'kokoro:check', 'checkin:now', 'diag:audit', 'diag:report', 'diag:export',
   'chat:retry', 'chat:packet', 'chat:compact', 'chat:snap', 'inspector:snapshot', 'inspector:open', 'journal:read', 'journal:clear',
   'notes:add', 'notes:remove', 'notes:clear', 'session:start', 'session:pause', 'session:resume', 'session:stop', 'demo:play',
@@ -14,7 +14,7 @@ const INVOKE = new Set(['settings:get', 'settings:set', 'settings:reset', 'windo
   'docs:list', 'docs:import', 'docs:import-text', 'docs:toggle', 'docs:delete', 'docs:clear', 'docs:preview',
   'questions:list', 'questions:save', 'questions:delete', 'questions:toggle-category', 'questions:export', 'questions:import',
   'dev:unlock', 'dev:lock', 'dialog:pick-file', 'dialog:pick-dir']);
-const EVENTS = new Set(['settings:changed', 'settings:section', 'chat:event', 'chat:status', 'inspector:changed', 'bubble:show']);
+const EVENTS = new Set(['settings:changed', 'settings:section', 'chat:event', 'chat:status', 'inspector:changed', 'bubble:show', 'ai:models-updated']);
 
 contextBridge.exposeInMainWorld('dexterUI', Object.freeze({
   invoke(channel, payload) {

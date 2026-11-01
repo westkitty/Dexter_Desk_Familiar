@@ -65,6 +65,7 @@ const state = {
   passThrough: false, overPet: false, moving: false, dragVirtual: null,
   quitting: false, familiarState: 'idle', napping: false, bubbleOpen: false,
   aiStatus: 'off', aiDetail: '', ttsStatus: 'off', egressCount: 0, egressWhileDisabled: 0,
+  availableAiModels: [],
   checkinTimer: null, lastCheckinAt: null, lastCheckinId: null, activeCheckin: null,
   displayTimer: null, crashTimes: [], startedAt: Date.now(),
   inspectorWin: null, bubbleWin: null, sessionTimer: null, sessionMilestone: null, gagTimer: null,
@@ -93,9 +94,11 @@ const semantic = semanticStates.createSemanticMachine({onChange: change => {
 // A mode overlays the user's settings at runtime; stored settings are never rewritten by it.
 function eff() { return modes.effectiveSettings(state.settings); }
 const ai = createOllamaClient({
-  getConfig: () => ({enabled: state.settings?.aiEnabled, provider: state.settings?.aiProvider, endpoint: state.settings?.aiEndpoint, allowRemote: state.settings?.aiAllowRemote,
+  headerTimeoutMs: 45000,
+  idleTimeoutMs: 30000,
+  getConfig: () => ({enabled: eff().aiEnabled, provider: state.settings?.aiProvider, endpoint: state.settings?.aiEndpoint, allowRemote: state.settings?.aiAllowRemote,
     model: state.settings?.aiModel, timeoutSeconds: state.settings?.aiTimeoutSeconds, contextMessages: state.settings?.aiContextMessages}),
-  onEgress: ({kind, loopback}) => { state.egressCount++; if (!state.settings?.aiEnabled) state.egressWhileDisabled++; events.record('ai', 'request', {kind, loopback}); }
+  onEgress: ({kind, loopback}) => { state.egressCount++; if (!eff().aiEnabled) state.egressWhileDisabled++; events.record('ai', 'request', {kind, loopback}); }
 });
 
 // ---------------------------------------------------------------- persistence
@@ -294,9 +297,18 @@ function applySettings(previous, next) {
   if (changed('launchAtLogin')) applyLoginItem();
   if (changed('art')) emit(next.art);
   if (changed('rememberConversation')) conversation.setPersist(next.rememberConversation);
-  if (changed('aiEnabled') || changed('aiEndpoint') || changed('aiAllowRemote')) {
-    if (!next.aiEnabled) ai.cancel();
-    setAiStatus(next.aiEnabled ? 'idle' : 'off', next.aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
+  if (changed('aiEnabled') || changed('aiEndpoint') || changed('aiAllowRemote') || changed('mode')) {
+    if (!eff().aiEnabled) ai.cancel();
+    setAiStatus(eff().aiEnabled ? 'idle' : 'off', eff().aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
+    if (eff().aiEnabled) {
+      ai.testConnection().then(res => {
+        if (res.ok) {
+          state.availableAiModels = res.models;
+          setAiStatus('ready', res.detail);
+          sendUi('ai:models-updated', {models: res.models, currentModel: state.settings.aiModel || res.model});
+        }
+      }).catch(() => {});
+    }
   }
   if (changed('ttsEnabled') && !next.ttsEnabled) { sendPet('dexter:speech', {op: 'cancel'}); piper.cancel(); }
   if (['checkinsEnabled', 'checkinMinutes', 'mode', 'sessionCheckinMinutes'].some(changed)) armCheckins();
@@ -357,7 +369,7 @@ function scaleMenu() {
 }
 function modeMenu() {
   return Object.entries(modes.MODES).map(([id, m]) => ({label: m.label + ' — ' + m.tagline, type: 'radio', checked: state.settings.mode === id,
-    click: () => { updateSettings({mode: id}); showBubble({kind: 'say', text: m.label + ' mode. ' + m.tagline, timeoutMs: 3500}); }}));
+    click: () => { updateSettings({mode: id}); if (id === 'chat') openChat(); showBubble({kind: 'say', text: m.label + ' mode. ' + m.tagline, timeoutMs: 3500}); }}));
 }
 function sessionMenu() {
   const snap = workSession.snapshot();
@@ -528,6 +540,17 @@ function openChat() {
   win.setBounds(saved ? ws.recoverBounds(saved, workAreas()) : ws.panelBeside(pet, {width: size.width, height: size.height}, area));
   sendPet('dexter:bubble', {kind: 'hide'});
   if (semantic.current !== 'summoning') semantic.enter('summoning', 'conversation opened');
+  if (eff().aiEnabled && (!state.availableAiModels?.length || state.aiStatus === 'idle')) {
+    ai.testConnection().then(res => {
+      if (res.ok) {
+        state.availableAiModels = res.models;
+        setAiStatus('ready', res.detail);
+        sendUi('ai:models-updated', {models: res.models, currentModel: state.settings.aiModel || res.model});
+      } else {
+        setAiStatus('offline', res.detail);
+      }
+    }).catch(() => {});
+  }
   const reveal = () => { win.show(); win.focus(); events.record('window', 'chat-shown', {}); };
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', reveal); else reveal();
   return win;
@@ -824,10 +847,11 @@ function applyHotkey() {
 // ---------------------------------------------------------------- conversation
 function setAiStatus(status, detail = '') {
   state.aiStatus = status; state.aiDetail = detail;
-  sendUi('chat:status', {status, detail, enabled: state.settings.aiEnabled});
+  sendUi('chat:status', {status, detail, enabled: eff().aiEnabled});
 }
 function chatSnapshot() {
-  return {messages: conversation.list(), status: state.aiStatus, detail: state.aiDetail, enabled: state.settings.aiEnabled,
+  return {messages: conversation.list(), status: state.aiStatus, detail: state.aiDetail, enabled: eff().aiEnabled,
+    model: state.settings.aiModel, availableModels: state.availableAiModels || [],
     remembering: state.settings.rememberConversation, commands: COMMANDS, compact: state.settings.chatCompact,
     stt: state.settings.sttEnabled, canRetry: Boolean(state.lastUserText)};
 }
@@ -887,6 +911,7 @@ async function runCommand(text, command, args) {
       if (!wanted) return localTurn(text, 'Mode: ' + modes.modeInfo(state.settings.mode).label + '. ' + modes.modeInfo(state.settings.mode).tagline);
       if (!modes.MODES[wanted]) return localTurn(text, 'Modes: ' + Object.keys(modes.MODES).join(', ') + '. Pick one.');
       updateSettings({mode: wanted});
+      if (wanted === 'chat') openChat();
       return localTurn(text, modes.MODES[wanted].label + ' mode. ' + modes.MODES[wanted].tagline);
     }
     case '/session': {
@@ -943,14 +968,14 @@ async function chatSend(raw, {retry = false} = {}) {
   const text = typeof raw === 'string' ? raw.slice(0, 4000).trim() : '';
   if (!text) return {ok: false};
   events.record('interaction', 'chat-send', {chars: text.length});
-  const decision = router.route(text, {aiEnabled: state.settings.aiEnabled});
+  const decision = router.route(text, {aiEnabled: eff().aiEnabled});
   events.record('ai', 'route-' + decision.path, {reason: decision.reason});
   pushChat({type: 'route', path: decision.path, reason: decision.reason});
   if (decision.path === 'command') { await runCommand(text, decision.command, decision.args || ''); return {ok: true}; }
   if (!retry) state.lastUserText = text;
   if (ai.busy()) return {ok: false, detail: 'Still answering. Stop the current reply first.'};
   pushChat({type: 'message', message: conversation.add('user', text)});
-  if (!state.settings.aiEnabled) {
+  if (!eff().aiEnabled) {
     const reply = persona.localReply(text);
     const m = conversation.add('assistant', reply, 'local');
     pushChat({type: 'message', message: m});
@@ -980,7 +1005,8 @@ async function chatSend(raw, {retry = false} = {}) {
 
   const result = await ai.streamChat({
     messages: conversation.context(), systemPrompt: persona.SYSTEM_PROMPT + extraPrompt,
-    onToken: token => { collected += token; pushChat({type: 'token', id: pending.id, text: token}); }
+    onToken: token => { collected += token; pushChat({type: 'token', id: pending.id, text: token}); },
+    onThinking: thought => { pushChat({type: 'thinking', id: pending.id, text: thought}); }
   });
   const finalText = result.text || collected;
   const status = result.status === 'done' ? 'complete' : result.status === 'truncated' ? 'truncated' : result.status === 'cancelled' ? 'cancelled' : 'error';
@@ -989,6 +1015,11 @@ async function chatSend(raw, {retry = false} = {}) {
   events.record('ai', 'reply-' + result.status, {chars: finalText.length});
   pushChat({type: 'done', id: pending.id, status, text: finalText, detail: result.detail || '', citations});
   if (result.status === 'done' || result.status === 'truncated') {
+    if (result.model && !state.settings.aiModel) state.settings.aiModel = result.model;
+    if (result.model && state.availableAiModels && !state.availableAiModels.includes(result.model)) {
+      state.availableAiModels.push(result.model);
+      sendUi('ai:models-updated', {models: state.availableAiModels, currentModel: state.settings.aiModel});
+    }
     setAiStatus('ready', result.model ? 'Connected · ' + result.model : 'Connected.');
     semantic.enter('watching', 'reply delivered', {force: true});
     deliverReply(finalText);
@@ -1172,18 +1203,36 @@ function setupIpc() {
   handle('window:reset-position', 'settings', () => { resetPosition(); restore(); return publicSettings(); });
   handle('window:hide-self', 'chat', () => { state.chatWin?.close(); return true; });
   handle('ai:test', 'settings', async () => {
-    if (!state.settings.aiEnabled) return {ok: false, detail: 'Turn on Local AI first. Nothing was contacted.'};
+    if (!eff().aiEnabled) return {ok: false, detail: 'Turn on Local AI first. Nothing was contacted.'};
     setAiStatus('connecting', 'Testing connection…');
     const result = await ai.testConnection();
+    if (result.ok && result.models) {
+      state.availableAiModels = result.models;
+      sendUi('ai:models-updated', {models: result.models, currentModel: state.settings.aiModel || result.model});
+    }
     setAiStatus(result.ok ? 'ready' : 'offline', result.detail);
     events.record('ai', result.ok ? 'test-ok' : 'test-failed', {models: result.models?.length || 0});
     return result;
+  });
+  handle('ai:models', 'any', async () => {
+    if (!eff().aiEnabled) return {ok: false, models: [], detail: 'Turn on Local AI first.'};
+    try {
+      const models = await ai.listModels();
+      state.availableAiModels = models;
+      return {ok: true, models, currentModel: state.settings.aiModel || models[0] || ''};
+    } catch (err) {
+      return {ok: false, models: [], detail: err.message};
+    }
   });
   handle('chat:history', 'chat', () => chatSnapshot());
   handle('chat:send', 'chat', text => chatSend(text));
   handle('chat:cancel', 'chat', () => { ai.cancel(); events.record('ai', 'cancel', {}); return true; });
   handle('chat:clear', 'any', () => { conversation.clear(); pushChat({type: 'reset', snapshot: chatSnapshot()}); return true; });
   handle('chat:open-settings', 'chat', () => { openSettings('ai'); return true; });
+  handle('chat:set-model', 'chat', model => {
+    if (typeof model === 'string') updateSettings({aiModel: model});
+    return state.settings.aiModel;
+  });
   handle('chat:retry', 'chat', () => retryLast());
   handle('chat:packet', 'chat', () => exportPacket());
   handle('chat:compact', 'chat', on => { updateSettings({chatCompact: on === true}); return state.settings.chatCompact; });
@@ -1439,7 +1488,18 @@ app.whenReady().then(() => {
   refreshMenus();
   applyDock();
   applyLoginItem();
-  setAiStatus(state.settings.aiEnabled ? 'idle' : 'off', state.settings.aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
+  setAiStatus(eff().aiEnabled ? 'idle' : 'off', eff().aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
+  if (eff().aiEnabled) {
+    ai.testConnection().then(res => {
+      if (res.ok) {
+        state.availableAiModels = res.models;
+        setAiStatus('ready', res.detail);
+        sendUi('ai:models-updated', {models: res.models, currentModel: state.settings.aiModel || res.model});
+      } else {
+        setAiStatus('offline', res.detail);
+      }
+    }).catch(() => {});
+  }
   armCheckins();
   armGags();
   applyHotkey();

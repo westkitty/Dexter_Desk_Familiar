@@ -303,3 +303,30 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
   4. **AI provider routing:** Fixed `getConfig` in `main.cjs` to pass `provider: state.settings?.aiProvider`, preventing OpenAI-compatible tunnel endpoints (`127.0.0.1:11435/v1`) from erroneously hitting Ollama `/api/tags` 404.
 - **Verification:** 69/69 web tests, 89/89 desktop tests PASS. Re-packaged into `/Applications/Dexter Desk Familiar.app`, ad-hoc signed and verified.
 
+## 2026-11-01 — Big Mac & wc2tb local LLM chat mode wiring & reasoning stream support
+
+- **Authority:** User request: "wire in the llm inti the chat mode theyre all on big mac or wc2tb".
+- **Identified architecture:**
+  - Big Mac inference: SSH tunnel actively forwarding `127.0.0.1:11435` to `westcat:11434` (Ollama running on Big Mac host with attached `/Volumes/wc2tb`).
+  - Available models on Big Mac / wc2tb: `gemma3:4b` (3.4 GB GGUF, ~2.8s fast inference) and `hermes-qwen3.8-27b-64k:latest` (18 GB MLX, thinking/reasoning model).
+  - Root cause of chat stalls: fixed 15s `headerTimeoutMs` in `ai-providers.cjs` was timing out on cold model load and during extended reasoning steps; thinking tokens (`delta.reasoning` / `message.thinking`) were unparsed and did not reset idle timers; conversation panel lacked a live model selector; Dexter had no dedicated `chat` mode in `MODES`.
+- **Changes applied:**
+  1. **Thinking token parsing & dynamic header timeout (`desktop/core/ai-providers.cjs`):**
+     - Increased default `headerTimeoutMs` to 45s, dynamically scaling up to `Math.min(60000, totalMs)`.
+     - Parsed SSE `delta.reasoning`/`delta.thinking` and NDJSON `message.thinking` tokens, invoking `onThinking` and refreshing `armIdle(idleTimeoutMs)` so models streaming reasoning never trigger false stall timeouts.
+  2. **Dedicated Chat mode (`desktop/core/modes.cjs`, `window-state.cjs`, `router.cjs`):**
+     - Added `chat` mode to `MODES` with overlay `{aiEnabled: true, checkinsEnabled: true, eventReactions: true, intensity: 'attentive', ttsSpeakReplies: true}`.
+     - Natural language router recognizes `/mode chat`, "switch to chat mode", and automatically opens the conversation panel.
+  3. **Live model selection in Conversation UI (`desktop/ui/chat.html`, `chat.js`, `panel.css`):**
+     - Added `<select id="chatModel">` in the conversation header displaying available models (`gemma3:4b`, `hermes-qwen3.8-27b-64k:latest`) from Big Mac with instant switching.
+     - Added live "Thinking…" status indication while reasoning tokens stream.
+     - IPC handles `ai:models` and `chat:set-model` with sandboxed security policy allowlist in `preload-ui.cjs`.
+  4. **Dynamic AI evaluation in Main (`desktop/main.cjs`):**
+     - Evaluated `eff().aiEnabled` across router, stream chat, and status updates so switching to `chat` mode activates AI seamlessly.
+     - Proactively probes AI connection on panel open, populating available models.
+- **Verification:**
+  - 69/69 root web tests PASS (`npm test`).
+  - 90/90 desktop unit tests PASS (`cd desktop && npm test`).
+  - `npm run check` passes 100% in root and desktop.
+  - Re-packaged and verified ad-hoc signed app: `/Applications/Dexter Desk Familiar.app`. Strict codesign verification PASS.
+

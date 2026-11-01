@@ -80,7 +80,7 @@ function createAiClient({
   fetchImpl = globalThis.fetch,
   getConfig,
   onEgress = () => {},
-  headerTimeoutMs = 15000,
+  headerTimeoutMs = 45000,
   idleTimeoutMs = 30000
 } = {}) {
   if (typeof fetchImpl !== 'function') throw new TypeError('fetch implementation required');
@@ -212,7 +212,7 @@ function createAiClient({
     return Boolean(active);
   }
 
-  async function streamChat({messages, systemPrompt, onToken = () => {}, contextLimit}) {
+  async function streamChat({messages, systemPrompt, onToken = () => {}, onThinking = () => {}, contextLimit}) {
     if (active) return {status: 'error', text: '', detail: 'A reply is already in progress.'};
     const job = {cancelled: false, controller: null};
     active = job;
@@ -234,7 +234,8 @@ function createAiClient({
         clearTimeout(idleTimer);
         idleTimer = setTimeout(() => { reason = reason || 'stalled'; controller.abort(); }, ms);
       };
-      armIdle(headerTimeoutMs);
+      const initialHeaderMs = Math.max(headerTimeoutMs, Math.min(60000, totalMs));
+      armIdle(initialHeaderMs);
 
       onEgress({kind: 'chat', loopback, provider});
 
@@ -281,8 +282,15 @@ function createAiClient({
               return {status: 'error', text, detail: 'Model error: ' + String(errDetail).slice(0, 200)};
             }
             if (item?.done) return {status: 'done', text, model};
-            const piece = item?.choices?.[0]?.delta?.content;
+            const delta = item?.choices?.[0]?.delta;
+            const piece = delta?.content;
+            const reasoning = delta?.reasoning || delta?.thinking;
+            if (typeof reasoning === 'string' && reasoning) {
+              armIdle(idleTimeoutMs);
+              onThinking(reasoning);
+            }
             if (typeof piece === 'string' && piece) {
+              armIdle(idleTimeoutMs);
               const room = MAX_REPLY_CHARS - text.length;
               const accepted = piece.slice(0, Math.max(0, room));
               if (accepted) { text += accepted; onToken(accepted); }
@@ -330,8 +338,14 @@ function createAiClient({
         rest = parsed.rest;
         for (const item of parsed.items) {
           if (item && typeof item.error === 'string') return {status: 'error', text, detail: 'Model error: ' + item.error.slice(0, 200)};
+          const thinking = typeof item?.message?.thinking === 'string' ? item.message.thinking : '';
+          if (thinking) {
+            armIdle(idleTimeoutMs);
+            onThinking(thinking);
+          }
           const piece = typeof item?.message?.content === 'string' ? item.message.content : '';
           if (piece) {
+            armIdle(idleTimeoutMs);
             const room = MAX_REPLY_CHARS - text.length;
             const accepted = piece.slice(0, Math.max(0, room));
             if (accepted) { text += accepted; onToken(accepted); }

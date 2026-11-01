@@ -13,7 +13,9 @@ const MODES = Object.freeze({
   dex: {label: 'Dex', tagline: 'Diagnostic lens. Speaks only when asked.',
     overlay: {quiet: true, checkinsEnabled: false, eventReactions: false, gags: false}},
   quiet: {label: 'Quiet', tagline: 'Present. Silent. Judging inwardly.',
-    overlay: {quiet: true, checkinsEnabled: false, eventReactions: false, ttsSpeakRemarks: false, gags: false}}
+    overlay: {quiet: true, checkinsEnabled: false, eventReactions: false, ttsSpeakRemarks: false, gags: false}},
+  chat: {label: 'Chat', tagline: 'Conversational companion. Speaks with local LLM.',
+    overlay: {aiEnabled: true, checkinsEnabled: true, eventReactions: true, intensity: 'attentive', ttsSpeakReplies: true}}
 });
 function modeInfo(id) { return MODES[id] || MODES.plain; }
 function effectiveSettings(settings) {

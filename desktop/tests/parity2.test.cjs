@@ -48,6 +48,7 @@ test('modes overlay settings without rewriting them', () => {
   assert.equal(work.checkinsEnabled, false); assert.equal(work.intensity, 'reserved');
   assert.equal(modes.effectiveSettings({...base, mode: 'plain'}).checkinsEnabled, true);
   assert.equal(modes.effectiveSettings({...base, mode: 'quiet'}).quiet, true);
+  assert.equal(modes.effectiveSettings({...base, mode: 'chat'}).aiEnabled, true);
   assert.equal(base.checkinsEnabled, true, 'stored settings untouched');
   for (const id of ws.MODES) assert.ok(modes.MODES[id], id);
 });
@@ -67,6 +68,7 @@ test('router prefers commands and intents, then local AI, never a cloud path', (
   assert.deepEqual(route('/session start 25'), {path: 'command', command: '/session', args: 'start 25', reason: 'slash command'});
   assert.equal(route('what mode are we in').command, '/mode');
   assert.deepEqual([route('please switch to work mode').command, route('please switch to work mode').args], ['/mode', 'work']);
+  assert.deepEqual([route('please switch to chat mode').command, route('please switch to chat mode').args], ['/mode', 'chat']);
   assert.equal(route('start a focus session').command, '/session');
   assert.equal(route('how much time is left?').command, '/time');
   assert.equal(route('explain monads', {aiEnabled: true}).path, 'local_ai');

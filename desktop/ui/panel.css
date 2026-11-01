@@ -33,7 +33,20 @@ body.chat { background: transparent; height: 100vh; overflow: hidden; }
 .chat-head > div { flex: 1; min-width: 0; }
 .chat-head small { font-size: 9px; letter-spacing: .12em; }
 .chat-head h1 { margin: 0; font-size: 14px; font-weight: 650; }
-.chat-head button, .chat-head .status-pill { -webkit-app-region: no-drag; }
+.chat-head button, .chat-head .status-pill, .chat-head .chat-model-select { -webkit-app-region: no-drag; }
+.chat-model-select {
+  -webkit-app-region: no-drag;
+  background: #1b262c;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 10px;
+  padding: 2px 4px;
+  max-width: 120px;
+  cursor: pointer;
+  outline: none;
+}
+.chat-model-select:focus { border-color: var(--accent); }
 .icon-button { background: none; border: 0; font-size: 18px; line-height: 1; padding: 2px 6px; color: var(--muted); }
 .status-pill { font-size: 10px; padding: 2px 7px; border-radius: 99px; background: #24323a; color: var(--muted); white-space: nowrap; }
 .status-pill[data-status="ready"] { color: var(--ok); }

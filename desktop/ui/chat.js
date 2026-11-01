@@ -2,7 +2,7 @@
 (() => {
   const ui = window.dexterUI;
   const $ = id => document.getElementById(id);
-  const log = $('log'), input = $('input'), send = $('send'), stop = $('stop'), notice = $('notice'), pill = $('aiStatus');
+  const log = $('log'), input = $('input'), send = $('send'), stop = $('stop'), notice = $('notice'), pill = $('aiStatus'), modelPick = $('chatModel');
   const nodes = new Map();
   let streaming = null;
   const LABEL = {user: 'You', assistant: 'Dexter', dexter: 'Dexter'};
@@ -47,6 +47,29 @@
     if (s.status === 'offline' || s.status === 'error') showNotice(s.detail || 'The model is unavailable. Local replies still work.');
     else if (s.status !== 'streaming') showNotice('');
   }
+  function updateModelPicker(data) {
+    if (!modelPick) return;
+    const models = Array.isArray(data?.availableModels) ? data.availableModels : Array.isArray(data?.models) ? data.models : [];
+    if (!data?.enabled && data?.enabled !== undefined) {
+      modelPick.hidden = true;
+      return;
+    }
+    if (models.length === 0) {
+      modelPick.hidden = true;
+      return;
+    }
+    modelPick.hidden = false;
+    const current = data.currentModel || data.model || modelPick.value;
+    modelPick.replaceChildren();
+    for (const name of models) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      if (name === current) opt.selected = true;
+      modelPick.appendChild(opt);
+    }
+    if (current && models.includes(current)) modelPick.value = current;
+  }
   function setCompact(on) { document.body.classList.toggle('compact', on); $('compact').setAttribute('aria-pressed', String(on)); }
   function reset(snapshot) {
     log.replaceChildren(); nodes.clear(); setBusy(null);
@@ -55,16 +78,20 @@
     $('retry').hidden = !snapshot.canRetry;
     for (const m of snapshot.messages) render(m);
     setStatus(snapshot);
+    updateModelPicker(snapshot);
     $('memory').textContent = snapshot.remembering ? 'Remembered on this computer.' : 'Not remembered after quitting.';
     if (!snapshot.messages.length) {
       render({id: 'intro', role: 'dexter', status: 'complete', content: snapshot.enabled
-        ? 'Local AI is on. I will answer. Briefly.'
+        ? 'Local AI is on' + (snapshot.model ? ' (' + snapshot.model + ')' : '') + '. I will answer. Briefly.'
         : 'No model is connected. I will reply anyway, unhelpfully. Commands like /treat and /status work regardless.'});
     }
   }
   ui.on('chat:event', event => {
     if (event.type === 'message') { nodes.get('intro')?.remove(); nodes.delete('intro'); render(event.message); if (event.message.status === 'streaming') setBusy(event.message.id); }
-    else if (event.type === 'token') {
+    else if (event.type === 'thinking') {
+      pill.textContent = 'Thinking…';
+      pill.dataset.status = 'streaming';
+    } else if (event.type === 'token') {
       const li = nodes.get(event.id);
       if (li) { const body = li.querySelector('.body'); body.textContent = (body.textContent === '…' ? '' : body.textContent) + event.text; log.scrollTop = log.scrollHeight; }
     } else if (event.type === 'done') {
@@ -77,6 +104,17 @@
     if (event.type === 'done') $('retry').hidden = !(event.status === 'error' || event.status === 'cancelled');
   });
   ui.on('chat:status', setStatus);
+  ui.on('ai:models-updated', data => {
+    updateModelPicker({enabled: true, models: data.models, currentModel: data.currentModel});
+  });
+  modelPick?.addEventListener('change', () => {
+    const chosen = modelPick.value;
+    if (chosen) {
+      ui.invoke('chat:set-model', chosen);
+      showNotice('Model: ' + chosen);
+      setTimeout(() => showNotice(''), 2000);
+    }
+  });
   ui.on('settings:changed', s => {
     $('memory').textContent = s.settings.rememberConversation ? 'Remembered on this computer.' : 'Not remembered after quitting.';
     $('mic').hidden = !s.settings.sttEnabled; setCompact(s.settings.chatCompact);

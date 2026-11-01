@@ -5,7 +5,7 @@
 const INTENTS = [
   {name: '/status', re: /\b(status|how are you doing|what('?s| is) (your|the) state)\b/i},
   {name: '/mode', re: /\bwhat mode\b|\bwhich mode\b/i},
-  {name: '/mode-set', re: /\b(switch|change|go|set)\b.*\b(plain|work|build|crisis|dex|quiet)\b(\s+mode)?/i},
+  {name: '/mode-set', re: /\b(switch|change|go|set)\b.*\b(plain|work|build|crisis|dex|quiet|chat)\b(\s+mode)?/i},
   {name: '/treat', re: /\b(have|want|here'?s|give( you)?) (a )?treat\b/i},
   {name: '/session-start', re: /\bstart (a )?(work |focus )?session\b/i},
   {name: '/session-stop', re: /\b(stop|end|finish) (the |my )?session\b/i},
@@ -27,7 +27,7 @@ function route(text, {aiEnabled = false} = {}) {
       const m = intent.re.exec(t);
       if (!m) continue;
       if (intent.name === '/mode-set') {
-        const mode = /\b(plain|work|build|crisis|dex|quiet)\b/i.exec(t)[1].toLowerCase();
+        const mode = /\b(plain|work|build|crisis|dex|quiet|chat)\b/i.exec(t)[1].toLowerCase();
         return {path: 'command', command: '/mode', args: mode, reason: 'recognised request: change mode'};
       }
       const [command, sub] = intent.name.split('-');

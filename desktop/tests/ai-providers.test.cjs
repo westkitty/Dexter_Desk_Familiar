@@ -161,3 +161,54 @@ test('Hermes gateway compatibility is labeled unverified', async () => {
   assert.equal(res.provider, 'hermes_unverified');
   assert.match(res.detail, /Hermes \(unverified\)/);
 });
+
+test('OpenAI-compatible reasoning chunks invoke onThinking and keep stream alive', async () => {
+  const fakeFetch = async (url) => {
+    if (url.endsWith('/models')) {
+      return {ok: true, status: 200, json: async () => ({data: [{id: 'reasoning-model'}]})};
+    }
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"","reasoning":"Thinking step 1"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"","reasoning":" Thinking step 2"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"Answer."}}]}\n\n',
+      'data: [DONE]\n\n'
+    ];
+    let i = 0;
+    const encoder = new TextEncoder();
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            if (i >= chunks.length) return {value: undefined, done: true};
+            return {value: encoder.encode(chunks[i++]), done: false};
+          }
+        })
+      }
+    };
+  };
+
+  const thoughts = [];
+  const tokens = [];
+  const client = createAiClient({
+    fetchImpl: fakeFetch,
+    getConfig: () => ({
+      enabled: true,
+      provider: 'openai_compatible',
+      endpoint: 'http://127.0.0.1:11435/v1',
+      model: 'reasoning-model'
+    })
+  });
+
+  const res = await client.streamChat({
+    messages: [{role: 'user', content: 'solve'}],
+    onToken: t => tokens.push(t),
+    onThinking: th => thoughts.push(th)
+  });
+
+  assert.equal(res.status, 'done');
+  assert.equal(res.text, 'Answer.');
+  assert.deepEqual(tokens, ['Answer.']);
+  assert.deepEqual(thoughts, ['Thinking step 1', ' Thinking step 2']);
+});
