@@ -33,6 +33,7 @@ assert(fs.existsSync(info) && fs.existsSync(sourceAsar), 'Run npm run package:ma
 assert(plist('CFBundleIdentifier',info) === identifier, 'Unexpected app identity');
 assert(plist('CFBundleExecutable',info) === 'Dexter Desk Familiar', 'Unexpected executable');
 assert(fs.statSync(sourceAsar).size > 0, 'Missing packaged desktop application');
+run('/usr/bin/codesign',['--verify','--deep','--strict','--verbose=2',sourceApp]);
 assert(!fs.existsSync(dmgPath) && !fs.existsSync(checksumPath),
   'Existing DMG or checksum would be overwritten; preserve previous review builds first');
 
@@ -59,6 +60,7 @@ try {
   assert(fs.readlinkSync(path.join(mount,'Applications')) === '/Applications',
     'Applications shortcut does not point to /Applications');
   assert(plist('CFBundleIdentifier',mountedInfo) === identifier,'DMG contains wrong application');
+  run('/usr/bin/codesign',['--verify','--deep','--strict','--verbose=2',mountedApp]);
   assert(sha(path.join(mountedApp,'Contents','Resources','app.asar')) === sha(sourceAsar),
     'DMG app payload differs from packaged app');
   assert(fs.statSync(path.join(mountedApp,'Contents','MacOS','Dexter Desk Familiar')).mode & 0o111,
@@ -71,10 +73,12 @@ try {
   run('ditto',[mountedApp,installedApp],{timeout:120000});
   assert(sha(path.join(installedApp,'Contents','Resources','app.asar'))===sha(sourceAsar),
     'Copied app changed its packaged payload');
+  run('/usr/bin/codesign',['--verify','--deep','--strict','--verbose=2',installedApp]);
   const exe = path.join(installedApp,'Contents','MacOS','Dexter Desk Familiar');
   execFileSync(exe,[],{env:{...process.env,DEXTER_DESKTOP_SMOKE:'1',DEXTER_DESKTOP_SMOKE_REQUIRE_VIDEO:'1'},
     stdio:'inherit',timeout:60000});
   console.log('Copied-out DMG application runtime smoke: PASS');
+  console.log('Source, mounted and copied-out app all have valid deep strict ad-hoc signatures; Developer ID trust remains unavailable.');
 } finally {
   let detachError = null;
   if (attached) {
