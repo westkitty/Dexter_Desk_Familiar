@@ -28,6 +28,7 @@ function loaded(win) {
   });
 }
 function check(report, name, ok, detail) {
+  if (process.env.DEXTER_SMOKE_TRACE === '1') console.log('[check] ' + name + ' ' + Boolean(ok));
   report[name] = detail === undefined ? Boolean(ok) : detail;
   if (!ok) throw new Error('Smoke assertion failed: ' + name + ' ' + JSON.stringify(detail === undefined ? ok : detail));
 }
@@ -234,6 +235,18 @@ async function fullSmoke(ctx) {
   check(report, 'systemPromptSent', fake.seen[0]?.messages[0]?.role === 'system' && /Dexter/.test(fake.seen[0].messages[0].content) && fake.seen[0].model === 'dexter-smoke:latest');
   check(report, 'egressCounted', state.egressCount >= 2, state.egressCount);
   check(report, 'aiReady', state.aiStatus === 'ready', state.aiStatus);
+  check(report, 'semanticThinking', ctx.semantic.history().some(h => h.to === 'thinking' && h.reason === 'model request'));
+  // Continuity firewall: a note reaches the model only when the user allows it.
+  ctx.notes().add('NOTE-FIREWALL-7');
+  const lastFor = q => fake.seen.filter(p => p.messages.at(-1).content === q).pop();
+  await send('firewall closed');
+  await waitFor(() => lastFor('firewall closed') && state.aiStatus === 'ready', 8000);
+  check(report, 'notesBlockedByDefault', lastFor('firewall closed') && !JSON.stringify(lastFor('firewall closed')).includes('NOTE-FIREWALL-7'));
+  ctx.updateSettings({notesInContext: true});
+  await send('firewall open');
+  await waitFor(() => lastFor('firewall open') && state.aiStatus === 'ready', 8000);
+  check(report, 'notesCrossWhenAllowed', lastFor('firewall open') && lastFor('firewall open').messages[0].content.includes('NOTE-FIREWALL-7') && ctx.notes().crossings >= 1);
+  ctx.updateSettings({notesInContext: false});
   await send('slow please');
   await waitFor(() => js(chat, `!document.getElementById('stop').hidden`), 4000);
   await sleep(200);
@@ -269,7 +282,7 @@ async function fullSmoke(ctx) {
     const ready=document.querySelector('[data-key="scale"]').value!=='';
     return ready?{sections,unlabeled,unnamed,quietLoaded:document.querySelector('[data-key="quiet"]').checked===false}:null;
   })()`));
-  check(report, 'settingsSections', ui && ui.sections === 11 && ui.unlabeled === 0 && ui.unnamed === 0, ui);
+  check(report, 'settingsSections', ui && ui.sections === 16 && ui.unlabeled === 0 && ui.unnamed === 0, ui);
   await js(settingsWin, `(()=>{const r=document.querySelector('[data-key="scale"]');r.value='160';r.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   check(report, 'settingsAppliesLive', await waitFor(() => win.getBounds().width === ws.petWindowSize(160).width), win.getBounds());
   const rejected = ctx.updateSettings({aiEndpoint: 'http://user:pw@127.0.0.1:1'});
@@ -284,9 +297,11 @@ async function fullSmoke(ctx) {
   fs.rmSync(path.dirname(out), {recursive: true, force: true});
   check(report, 'historyNotPersisted', !fs.existsSync(path.join(ctx.app.getPath('userData'), 'conversation.json')));
 
+  await parity2(ctx, report, {win, chat, settingsWin, send});
+
   // ---------------------------------------------------------- resources
   const snap = ctx.snapshot();
-  check(report, 'allRenderersIsolated', snap.windows.length === 3 && snap.windows.every(w => w.sandbox && w.contextIsolation && !w.nodeIntegration), snap.windows);
+  check(report, 'allRenderersIsolated', snap.windows.length >= 3 && snap.windows.every(w => w.sandbox && w.contextIsolation && !w.nodeIntegration), snap.windows);
   // The click closes (destroys) the very frame running it, so its result can never
   // resolve; assert the observable outcome instead of awaiting the script.
   js(chat, `document.getElementById('closeChat').click()`).catch(() => {});
@@ -304,8 +319,126 @@ async function fullSmoke(ctx) {
   console.log('[DEXTER DESKTOP SMOKE PASS] ' + JSON.stringify(report));
 }
 
+// WestCat parity round 2: modes, router, sessions, check-in follow-ups and editor,
+// journal, packet, inspector, detached bubble, hotkey, Spaces, tricks, typewriter,
+// demo, Piper voice listing and push-to-talk transcription with a fake whisper.cpp.
+async function parity2(ctx, report, {win, chat, settingsWin, send}) {
+  const {state} = ctx;
+  const userData = ctx.app.getPath('userData');
+  ctx.updateSettings({motion: 'full', quiet: false});
+  // Router: natural-language intent handled locally.
+  await send('what mode are we in');
+  check(report, 'routerIntent', await waitFor(() => js(chat, `[...document.querySelectorAll('.msg-dexter .body')].some(n=>n.textContent.startsWith('Mode: Plain'))`)));
+  check(report, 'routeShown', await waitFor(() => js(chat, `document.getElementById('route').textContent.includes('change mode')||document.getElementById('route').textContent.includes('mode')`)));
+  // Modes overlay settings without rewriting them.
+  ctx.updateSettings({checkinsEnabled: true});
+  await send('/mode work');
+  check(report, 'modeWork', state.settings.mode === 'work' && state.settings.checkinsEnabled === true && ctx.inspectorSnapshot().mode.label === 'Work');
+  ctx.updateSettings({mode: 'plain', checkinsEnabled: false});
+  // Quick-add custom check-in, then a custom question with a follow-up, answered through the pet bubble.
+  await send('/ask Coffee yet? | Yes | No');
+  check(report, 'quickAsk', await waitFor(() => state.settings.customCheckins.length === 1));
+  ctx.updateSettings({checkinSource: 'custom', customCheckins: [{text: 'Smoke question?', choices: [
+    {label: 'First', reply: 'First reply.', followUp: {text: 'Follow-up?', choices: [{label: 'Deep', reply: 'Deep reply.'}, {label: 'Shallow', reply: 'Shallow reply.'}]}},
+    {label: 'Second', reply: 'Second reply.'}]}]});
+  ctx.updateSettings({keepJournal: true});
+  ctx.runCheckin({force: true});
+  const q1 = await waitFor(() => js(win, `(()=>{const b=document.querySelector('.desktop-bubble');return b&&!b.hidden&&b.querySelector('.desktop-bubble-text').getAttribute('aria-label')})()`));
+  check(report, 'customCheckinShown', q1 === 'Smoke question?', q1);
+  await js(win, `document.querySelector('.desktop-bubble-choices button').click()`);
+  const q2 = await waitFor(() => js(win, `(()=>{const t=document.querySelector('.desktop-bubble-text').getAttribute('aria-label');return t==='Follow-up?'?t:null})()`));
+  check(report, 'followUpShown', q2 === 'Follow-up?', q2);
+  await js(win, `document.querySelector('.desktop-bubble-choices button').click()`);
+  check(report, 'followUpAnswered', await waitFor(() => js(win, `document.querySelector('.desktop-bubble-text').getAttribute('aria-label')==='Deep reply.'`)));
+  check(report, 'journalRecorded', await waitFor(() => ctx.journal().read().filter(j => j.kind === 'checkin').length === 2));
+  ctx.updateSettings({keepJournal: false, checkinSource: 'mixed'});
+  check(report, 'journalDeletedOnDisable', !fs.existsSync(path.join(userData, 'journal.jsonl')));
+  // Typewriter reveals progressively (full motion), screen readers get the whole text.
+  state.win.webContents.send('dexter:bubble', {kind: 'say', text: 'This sentence is long enough to be typed out slowly.', timeoutMs: 6000});
+  const partial = await js(win, `new Promise(r=>setTimeout(()=>r(document.querySelector('.desktop-bubble-text').textContent.length),120))`);
+  check(report, 'typewriterProgressive', partial > 0 && partial < 52, partial);
+  check(report, 'typewriterCompletes', await waitFor(() => js(win, `document.querySelector('.desktop-bubble-text').textContent==='This sentence is long enough to be typed out slowly.'`), 4000));
+  // Tricks animate the sprite.
+  await js(win, `window.__gags=0;const o=Element.prototype.animate;Element.prototype.animate=function(...a){window.__gags++;return o.apply(this,a)};true`);
+  state.win.webContents.send('dexter:gag', 'hop');
+  check(report, 'gagAnimated', await waitFor(() => js(win, 'window.__gags>0')));
+  // Sessions: start a 3-second session and observe halfway and end milestones.
+  ctx.startSession(0.05);
+  check(report, 'sessionStarted', ctx.workSession.snapshot().active);
+  check(report, 'sessionHalf', await waitFor(() => state.sessionMilestone === 'half', 4000));
+  check(report, 'sessionEnded', await waitFor(() => !ctx.workSession.snapshot().active, 5000));
+  ctx.startSession(25); ctx.pauseSession();
+  check(report, 'sessionPaused', ctx.workSession.snapshot().paused);
+  ctx.stopSession();
+  // Demo playback through the bubble.
+  ctx.demo.play();
+  check(report, 'demoPlays', await waitFor(() => js(win, `(document.querySelector('.desktop-bubble-text').getAttribute('aria-label')||'').includes('demonstration')`)));
+  ctx.demo.stop();
+  // Retry, compact and packet.
+  check(report, 'retryAvailable', state.lastUserText === 'are you there');
+  await send('/compact');
+  check(report, 'compactToggled', await waitFor(() => js(chat, `document.body.classList.contains('compact')`)));
+  await send('/compact');
+  const packetFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-packet-')), 'p.md');
+  await ctx.exportPacket(packetFile);
+  check(report, 'packetExported', fs.readFileSync(packetFile, 'utf8').includes('# Dexter context packet'));
+  fs.rmSync(path.dirname(packetFile), {recursive: true, force: true});
+  // Inspector window with real data.
+  const inspector = ctx.openInspector();
+  await loaded(inspector);
+  check(report, 'inspectorRenders', await waitFor(() => js(inspector, `document.querySelectorAll('#familiar dd').length>=3 && document.getElementById('auditResult').textContent.startsWith('Result:')`), 6000));
+  // Detached bubble window.
+  ctx.updateSettings({bubbleMode: 'window'});
+  ctx.showBubble({kind: 'reply', text: 'Detached bubble line.', timeoutMs: 6000});
+  const bubbleOk = await waitFor(async () => state.bubbleWin && !state.bubbleWin.isDestroyed() && !state.bubbleWin.webContents.isLoading() &&
+    await js(state.bubbleWin, `!document.getElementById('bubble').hidden && document.getElementById('text').textContent`), 6000);
+  check(report, 'detachedBubble', bubbleOk === 'Detached bubble line.', bubbleOk);
+  check(report, 'detachedBubbleNoFocus', state.bubbleWin.isFocusable() === false || process.platform === 'linux');
+  ctx.updateSettings({bubbleMode: 'pet'});
+  check(report, 'detachedBubbleClosed', await waitFor(() => !state.bubbleWin));
+  // Global hotkey: registers one fixed combination, or reports that it is unavailable.
+  ctx.updateSettings({globalHotkey: 'CommandOrControl+Shift+K'});
+  report.hotkey = state.hotkeyStatus;
+  check(report, 'hotkeyAttempted', /^(registered|unavailable)/.test(state.hotkeyStatus), state.hotkeyStatus);
+  ctx.updateSettings({globalHotkey: ''});
+  check(report, 'hotkeyReleased', state.hotkeyStatus === 'off');
+  // All Spaces / full screen.
+  ctx.updateSettings({allSpaces: true});
+  if (process.platform === 'darwin') check(report, 'allSpaces', win.isVisibleOnAllWorkspaces());
+  ctx.updateSettings({allSpaces: false});
+  // Piper voice folder listing.
+  const voices = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-voices-'));
+  fs.writeFileSync(path.join(voices, 'en_GB-dexter-low.onnx'), 'x');
+  ctx.updateSettings({piperVoicesDir: voices});
+  const listed = await js(settingsWin, `window.dexterUI.invoke('piper:voices')`);
+  check(report, 'piperVoicesListed', listed.length === 1 && listed[0].name === 'en GB dexter low', listed);
+  fs.rmSync(voices, {recursive: true, force: true});
+  // Push-to-talk transcription with a fake, local whisper.cpp program.
+  const sttDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-stt-fake-'));
+  const fakeWhisper = path.join(sttDir, 'whisper-cli'), model = path.join(sttDir, 'ggml-tiny.bin');
+  fs.writeFileSync(fakeWhisper, '#!/bin/sh\nout=""\nwhile [ $# -gt 0 ]; do if [ "$1" = "-of" ]; then out="$2"; fi; shift; done\nprintf "Hello from whisper" > "$out.txt"\n', {mode: 0o755});
+  fs.writeFileSync(model, 'x');
+  const sttOff = await js(chat, `window.dexterUI.invoke('stt:prepare')`);
+  check(report, 'sttOffByDefault', sttOff.ok === false);
+  ctx.updateSettings({sttEnabled: true, whisperPath: fakeWhisper, whisperModel: model});
+  check(report, 'micButtonShown', await waitFor(() => js(chat, `!document.getElementById('mic').hidden`)));
+  const transcript = await js(chat, `window.dexterUI.invoke('stt:transcribe', window.DexterWav.encodeWav(new Float32Array(3200)))`);
+  check(report, 'sttTranscribed', transcript.ok && transcript.text === 'Hello from whisper', transcript);
+  ctx.updateSettings({sttEnabled: false});
+  fs.rmSync(sttDir, {recursive: true, force: true});
+  // Developer menu exists only when enabled.
+  ctx.updateSettings({developerTools: true});
+  check(report, 'devMenu', ctx.devMenu().items.length >= 6 && ctx.petMenu().items.some(i => i.label === 'Developer'));
+  ctx.updateSettings({developerTools: false});
+  check(report, 'devMenuHidden', !ctx.petMenu().items.some(i => i.label === 'Developer'));
+  // Notifications preference is honored without error.
+  ctx.updateSettings({nativeNotifications: true});
+  report.notificationsSupported = require('electron').Notification.isSupported();
+  ctx.updateSettings({nativeNotifications: false});
+  inspector.close();
+}
 function run(ctx) {
-  const timeout = setTimeout(() => { console.error('[DEXTER DESKTOP SMOKE] timeout'); ctx.app.exit(1); }, 90000);
+  const timeout = setTimeout(() => { console.error('[DEXTER DESKTOP SMOKE] timeout'); ctx.app.exit(1); }, 150000);
   const phase = process.env.DEXTER_DESKTOP_SMOKE_PHASE || 'full';
   const job = phase === 'full' ? fullSmoke(ctx) : persistencePhase(ctx, phase);
   job.then(() => { clearTimeout(timeout); ctx.app.quit(); }).catch(error => {

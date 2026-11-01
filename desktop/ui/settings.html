@@ -13,15 +13,20 @@
     <p class="brand"><strong>DEXTER</strong><small>House rules</small></p>
     <ul>
       <li><a href="#appearance">Appearance</a></li>
+      <li><a href="#modes">Modes &amp; sessions</a></li>
       <li><a href="#window">Window</a></li>
       <li><a href="#behavior">Interaction</a></li>
       <li><a href="#animation">Animation</a></li>
       <li><a href="#speech">Sound &amp; speech</a></li>
+      <li><a href="#conversation">Conversation</a></li>
       <li><a href="#ai">Local AI</a></li>
+      <li><a href="#memory">Notes &amp; memory</a></li>
       <li><a href="#checkins">Check-ins</a></li>
       <li><a href="#accessibility">Accessibility</a></li>
       <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#system">System</a></li>
       <li><a href="#diagnostics">Diagnostics</a></li>
+      <li><a href="#developer">Developer</a></li>
       <li><a href="#reset">Reset &amp; recovery</a></li>
     </ul>
   </nav>
@@ -35,6 +40,16 @@
       <label class="row"><span><strong>Face the other way</strong><small>Mirror Dexter horizontally.</small></span><input type="checkbox" data-key="flipped"></label>
       <label class="row"><span><strong>Size</strong><small><output data-for="scale"></output></small></span><input type="range" min="60" max="200" step="10" data-key="scale" data-type="number"></label>
       <label class="row"><span><strong>Opacity</strong><small><output data-for="opacity"></output> · never below 40%, so he cannot vanish.</small></span><input type="range" min="40" max="100" step="5" data-key="opacity" data-type="percent"></label>
+    </section>
+
+    <section id="modes" aria-labelledby="h-modes">
+      <h2 id="h-modes">Modes &amp; sessions</h2>
+      <label class="row"><span><strong>Mode</strong><small id="modeTagline">Modes adjust check-ins, reactions and chattiness without changing your saved settings.</small></span>
+        <select data-key="mode"><option value="plain">Plain</option><option value="work">Work</option><option value="build">Build</option><option value="crisis">Crisis</option><option value="dex">Dex</option><option value="quiet">Quiet</option></select></label>
+      <label class="row"><span><strong>Default session length</strong></span><select data-key="sessionMinutes" data-type="number"><option value="25">25 minutes</option><option value="50">50 minutes</option><option value="90">90 minutes</option><option value="120">2 hours</option></select></label>
+      <label class="row"><span><strong>Check-ins during a session</strong><small>Every so often while a session runs, still subject to quiet mode and the attention budget.</small></span><select data-key="sessionCheckinMinutes" data-type="number"><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option></select></label>
+      <div class="actions"><button type="button" id="sessionStart">Start session</button><button type="button" data-command="session:pause">Pause</button><button type="button" data-command="session:resume">Resume</button><button type="button" data-command="session:stop">End</button></div>
+      <output id="sessionResult" class="result" role="status"></output>
     </section>
 
     <section id="window" aria-labelledby="h-window">
@@ -61,6 +76,10 @@
       <h2 id="h-animation">Animation</h2>
       <label class="row"><span><strong>Motion</strong><small>Reduced motion keeps distinct poses and still images, without patrols or video.</small></span>
         <select data-key="motion"><option value="system">Follow macOS setting</option><option value="reduced">Reduced</option><option value="full">Full</option></select></label>
+      <label class="row"><span><strong>Animation speed</strong><small><output data-for="animationSpeed"></output> · applies to clips and tricks</small></span><input type="range" min="50" max="200" step="25" data-key="animationSpeed" data-type="percent"></label>
+      <label class="row"><span><strong>Occasional tricks</strong><small>A rare sneeze or shake, within the attention budget.</small></span><input type="checkbox" data-key="gags"></label>
+      <label class="row"><span><strong>Typewriter text</strong><small>Bubbles reveal their words. Off under reduced motion.</small></span><input type="checkbox" data-key="typewriter"></label>
+      <label class="row"><span><strong>Typewriter speed</strong><small><output data-for="typewriterCps"></output></small></span><input type="range" min="15" max="120" step="5" data-key="typewriterCps" data-type="number"></label>
     </section>
 
     <section id="speech" aria-labelledby="h-speech">
@@ -72,7 +91,10 @@
           <select data-key="ttsEngine"><option value="system">System voice (on-device)</option><option value="piper">Piper (your installation)</option></select></label>
         <label class="row" data-engine="system"><span><strong>System voice</strong><small id="voiceNote">On-device voices only.</small></span><select data-key="ttsVoice" id="voiceSelect"><option value="">Default</option></select></label>
         <label class="row" data-engine="piper"><span><strong>Piper program</strong><small>Absolute path, for example /opt/homebrew/bin/piper</small></span><input type="text" data-key="piperPath" spellcheck="false" autocomplete="off"></label>
+        <label class="row" data-engine="piper"><span><strong>Piper voices folder</strong><small>Optional. A folder of .onnx voices to pick from.</small></span><input type="text" data-key="piperVoicesDir" spellcheck="false" autocomplete="off"></label>
+        <label class="row" data-engine="piper"><span><strong>Pick a voice from the folder</strong></span><select id="voicePick"><option value="">—</option></select></label>
         <label class="row" data-engine="piper"><span><strong>Piper voice model</strong><small>Absolute path to an .onnx voice. Nothing is downloaded.</small></span><input type="text" data-key="piperModel" spellcheck="false" autocomplete="off"></label>
+        <label class="row" data-engine="piper"><span><strong>Cache spoken lines</strong><small id="cacheNote">Saves synthesized audio in Dexter's own folder. Turning it off deletes it.</small></span><input type="checkbox" data-key="ttsCache"></label>
         <label class="row"><span><strong>Volume</strong><small><output data-for="ttsVolume"></output></small></span><input type="range" min="0" max="100" step="5" data-key="ttsVolume" data-type="percent"></label>
         <label class="row"><span><strong>Rate</strong><small><output data-for="ttsRate"></output></small></span><input type="range" min="50" max="200" step="5" data-key="ttsRate" data-type="percent"></label>
         <label class="row"><span><strong>Speak conversation replies</strong></span><input type="checkbox" data-key="ttsSpeakReplies"></label>
@@ -80,7 +102,24 @@
         <div class="actions"><button type="button" id="ttsTest">Test voice</button><button type="button" data-command="tts:stop">Stop speaking</button><button type="button" id="piperCheck" data-engine="piper">Check Piper</button></div>
         <output id="ttsResult" class="result" role="status"></output>
       </div>
-      <p class="note">Microphone input and speech recognition are not part of Dexter. He never listens.</p>
+      <h3>Speech input (microphone)</h3>
+      <p class="note">Optional and off. When on, a microphone button appears in the conversation panel. Dexter records only between your two clicks (up to 30 seconds), transcribes on this computer with a whisper.cpp program you installed, deletes the audio, and puts the text in the box for you to review. He never listens otherwise. macOS will ask for microphone permission the first time.</p>
+      <label class="row"><span><strong>Enable speech input</strong></span><input type="checkbox" data-key="sttEnabled"></label>
+      <div class="dependent" data-when="sttEnabled">
+        <label class="row"><span><strong>whisper.cpp program</strong><small>Absolute path, for example /opt/homebrew/bin/whisper-cli</small></span><input type="text" data-key="whisperPath" spellcheck="false" autocomplete="off"></label>
+        <label class="row"><span><strong>Whisper model</strong><small>Absolute path to a .bin or .gguf model.</small></span><input type="text" data-key="whisperModel" spellcheck="false" autocomplete="off"></label>
+        <div class="actions"><button type="button" id="sttCheck">Check speech input</button></div>
+        <output id="sttResult" class="result" role="status"></output>
+      </div>
+    </section>
+
+    <section id="conversation" aria-labelledby="h-conversation">
+      <h2 id="h-conversation">Conversation</h2>
+      <label class="row"><span><strong>Where replies appear</strong><small>In Dexter's own bubble, or in a separate bubble window you can drag anywhere.</small></span><select data-key="bubbleMode"><option value="pet">Above Dexter</option><option value="window">Separate bubble window</option></select></label>
+      <label class="row"><span><strong>Compact conversation panel</strong><small>Show only the latest exchange.</small></span><input type="checkbox" data-key="chatCompact"></label>
+      <label class="row"><span><strong>Show the last reply when Dexter starts</strong><small>Only when the conversation is remembered.</small></span><input type="checkbox" data-key="showLastReplyOnStart"></label>
+      <label class="row"><span><strong>Keyboard shortcut to talk</strong><small id="hotkeyNote">Registers one key combination with macOS. Dexter sees no other keys.</small></span>
+        <select data-key="globalHotkey"><option value="">None</option><option value="CommandOrControl+Shift+K">⌘⇧K</option><option value="CommandOrControl+Shift+D">⌘⇧D</option><option value="Alt+Shift+D">⌥⇧D</option></select></label>
     </section>
 
     <section id="ai" aria-labelledby="h-ai">
@@ -98,6 +137,14 @@
       <output id="aiResult" class="result" role="status"></output>
     </section>
 
+    <section id="memory" aria-labelledby="h-memory">
+      <h2 id="h-memory">Notes &amp; memory</h2>
+      <p class="note">Notes are things you ask Dexter to remember (also with <code>/remember</code>). They are stored only on this computer. A firewall keeps them out of AI requests unless you allow it; every crossing is counted in the Inspector.</p>
+      <label class="row"><span><strong>Use my notes in AI context</strong></span><input type="checkbox" data-key="notesInContext"></label>
+      <div class="actions"><input type="text" id="noteText" aria-label="New note" placeholder="Something worth remembering" maxlength="280"><button type="button" id="noteAdd">Add note</button><button type="button" id="notesClear" class="danger">Delete all notes</button></div>
+      <ul id="noteList" class="editor-list" aria-label="Saved notes"></ul>
+    </section>
+
     <section id="checkins" aria-labelledby="h-checkins">
       <h2 id="h-checkins">Check-ins</h2>
       <label class="row"><span><strong>Occasional check-ins</strong><small>Dexter asks a short question with a few answers. Answers are not saved.</small></span><input type="checkbox" data-key="checkinsEnabled"></label>
@@ -105,8 +152,26 @@
         <label class="row"><span><strong>Roughly every</strong></span><select data-key="checkinMinutes" data-type="number"><option value="30">30 minutes</option><option value="60">hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="240">4 hours</option></select></label>
         <label class="row"><span><strong>Quiet hours</strong><small>No check-ins from 22:00 to 08:00.</small></span><input type="checkbox" data-key="checkinQuietHours"></label>
       </div>
+      <label class="row"><span><strong>Questions to ask</strong></span><select data-key="checkinSource"><option value="mixed">Dexter's and mine</option><option value="builtin">Dexter's only</option><option value="custom">Mine only</option></select></label>
       <div class="actions"><button type="button" id="checkinNow">Show one now</button></div>
       <output id="checkinResult" class="result" role="status"></output>
+      <h3>My questions</h3>
+      <ul id="customList" class="editor-list" aria-label="Your check-in questions"></ul>
+      <form id="customForm" class="editor" aria-label="Add or edit a question">
+        <label class="row"><span><strong>Question</strong></span><input type="text" id="cq-text" maxlength="160" required></label>
+        <fieldset><legend>Answers (two to four). Dexter's reply is optional.</legend>
+          <div class="pair"><input type="text" id="cq-a0" maxlength="40" aria-label="Answer 1" placeholder="Answer 1" required><input type="text" id="cq-r0" maxlength="200" aria-label="Reply to answer 1" placeholder="Dexter replies…"></div>
+          <div class="pair"><input type="text" id="cq-a1" maxlength="40" aria-label="Answer 2" placeholder="Answer 2" required><input type="text" id="cq-r1" maxlength="200" aria-label="Reply to answer 2" placeholder="Dexter replies…"></div>
+          <div class="pair"><input type="text" id="cq-a2" maxlength="40" aria-label="Answer 3" placeholder="Answer 3 (optional)"><input type="text" id="cq-r2" maxlength="200" aria-label="Reply to answer 3" placeholder="Dexter replies…"></div>
+          <div class="pair"><input type="text" id="cq-a3" maxlength="40" aria-label="Answer 4" placeholder="Answer 4 (optional)"><input type="text" id="cq-r3" maxlength="200" aria-label="Reply to answer 4" placeholder="Dexter replies…"></div>
+        </fieldset>
+        <fieldset><legend>Optional follow-up after answer 1</legend>
+          <label class="row"><span>Follow-up question</span><input type="text" id="cq-ftext" maxlength="160"></label>
+          <div class="pair"><input type="text" id="cq-fa0" maxlength="40" aria-label="Follow-up answer 1" placeholder="Answer"><input type="text" id="cq-fr0" maxlength="200" aria-label="Follow-up reply 1" placeholder="Dexter replies…"></div>
+          <div class="pair"><input type="text" id="cq-fa1" maxlength="40" aria-label="Follow-up answer 2" placeholder="Answer"><input type="text" id="cq-fr1" maxlength="200" aria-label="Follow-up reply 2" placeholder="Dexter replies…"></div>
+        </fieldset>
+        <div class="actions"><button type="submit" class="primary" id="cq-save">Add question</button><button type="button" id="cq-cancel">Clear form</button></div>
+      </form>
     </section>
 
     <section id="accessibility" aria-labelledby="h-accessibility">
@@ -120,6 +185,8 @@
       <h2 id="h-privacy">Privacy</h2>
       <label class="row"><span><strong>Remember conversation on this computer</strong><small>Off: history disappears when Dexter quits. Turning this off deletes the saved file.</small></span><input type="checkbox" data-key="rememberConversation"></label>
       <div class="actions"><button type="button" data-command="chat:clear">Clear conversation now</button></div>
+      <label class="row"><span><strong>Keep a journal of check-in answers and sessions</strong><small>Off by default. Stored only on this computer (last 1000 entries). Turning it off deletes it. Visible in the Inspector.</small></span><input type="checkbox" data-key="keepJournal"></label>
+      <div class="actions"><button type="button" data-command="journal:clear">Delete journal</button></div>
       <ul class="facts">
         <li>No analytics, accounts, telemetry or crash uploads.</li>
         <li>No keyboard, screen, clipboard, browser or app monitoring. Dexter sees only clicks on himself.</li>
@@ -129,12 +196,24 @@
       </ul>
     </section>
 
+    <section id="system" aria-labelledby="h-system">
+      <h2 id="h-system">System</h2>
+      <label class="row"><span><strong>Show on every desktop and over full-screen apps</strong><small>Off by default.</small></span><input type="checkbox" data-key="allSpaces"></label>
+      <label class="row"><span><strong>Notifications while Dexter is hidden</strong><small>For replies, check-ins and session milestones you would otherwise miss. Off by default.</small></span><input type="checkbox" data-key="nativeNotifications"></label>
+    </section>
+
     <section id="diagnostics" aria-labelledby="h-diagnostics">
       <h2 id="h-diagnostics">Diagnostics</h2>
       <div class="actions"><button type="button" id="audit">Run self-audit</button><button type="button" id="report">Show report</button><button type="button" id="export">Export report…</button></div>
       <table id="auditTable" class="audit" hidden><caption>Self-audit</caption><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody></tbody></table>
       <pre id="reportView" class="report" hidden tabindex="0" aria-label="Diagnostic report"></pre>
       <output id="diagResult" class="result" role="status"></output>
+    </section>
+
+    <section id="developer" aria-labelledby="h-developer">
+      <h2 id="h-developer">Developer</h2>
+      <label class="row"><span><strong>Developer tools</strong><small>Adds a Developer menu, also opened by poking Dexter five times quickly: force states, trigger check-ins and reactions, tricks, typewriter speed.</small></span><input type="checkbox" data-key="developerTools"></label>
+      <div class="actions"><button type="button" data-command="inspector:open">Open Inspector</button><button type="button" data-command="demo:play">Play demonstration</button></div>
     </section>
 
     <section id="reset" aria-labelledby="h-reset">

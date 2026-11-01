@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Shown by macOS only if the user enables Speech input and presses the record button. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Dexter records only while you hold the record button in the conversation panel, transcribes on this Mac with your own whisper.cpp, and deletes the audio.</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>12.0</string>
+</dict>
+</plist>

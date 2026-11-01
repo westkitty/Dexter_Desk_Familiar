@@ -1,6 +1,6 @@
 {
   "name": "dexter-desk-desktop",
-  "version": "0.2.0-alpha.1",
+  "version": "0.3.0-alpha.1",
   "private": true,
   "description": "Isolated macOS desktop companion host for Dexter: floating overlay, optional local AI and speech, sharing the browser behavior engine",
   "main": "main.cjs",

@@ -21,7 +21,8 @@
   function describe(key, value) {
     if (key === 'scale') return value + '%';
     if (key === 'opacity' || key === 'ttsVolume') return Math.round(value * 100) + '%';
-    if (key === 'ttsRate') return value.toFixed(2) + '×';
+    if (key === 'ttsRate' || key === 'animationSpeed') return value.toFixed(2) + '×';
+    if (key === 'typewriterCps') return value + ' characters per second';
     return String(value);
   }
   function render(data) {
@@ -35,6 +36,14 @@
     $('launchAtLogin').disabled = !data.canLaunchAtLogin;
     if (data.aiDetail && !$('aiResult').dataset.sticky) $('aiResult').textContent = 'Status: ' + data.aiStatus + ' — ' + data.aiDetail;
     if (data.ttsStatus && data.ttsStatus !== 'off') $('ttsResult').textContent = 'Speech: ' + data.ttsStatus;
+    const m = data.modes && data.modes[s.mode];
+    if (m) $('modeTagline').textContent = m.tagline + ' Modes never change your saved settings.';
+    $('hotkeyNote').textContent = 'Registers one key combination with macOS. Dexter sees no other keys. Status: ' + data.hotkeyStatus + '.';
+    $('cacheNote').textContent = 'Saves synthesized audio in Dexter\'s own folder (' + data.ttsCacheStats.files + ' files). Turning it off deletes it.';
+    const sess = data.session;
+    $('sessionResult').textContent = sess && sess.active ? 'Session running: ' + Math.round(sess.remainingMs / 60000) + ' min left' + (sess.paused ? ' (paused)' : '') + '.' : 'No session running.';
+    renderNotes(data.notes || []);
+    renderCustom(s.customCheckins || []);
   }
   let savedTimer = null;
   function saved(text) {
@@ -54,6 +63,8 @@
       const key = el.dataset.key, value = fromControl(el);
       if (key === 'aiEnabled' && value && !confirm('Enable Local AI?\n\nMessages you type in the conversation panel will be sent to ' + (current?.settings.aiEndpoint || 'your endpoint') + '. Nothing else is sent, and nothing is downloaded.')) { el.checked = false; return; }
       if (key === 'aiAllowRemote' && value && !confirm('Allow a non-local endpoint?\n\nYour messages would leave this computer over your network.')) { el.checked = false; return; }
+      if (key === 'sttEnabled' && value && !confirm('Enable speech input?\n\nA microphone button will appear in the conversation panel. Dexter records only between your clicks, transcribes on this computer, and deletes the audio. macOS will ask for microphone access.')) { el.checked = false; return; }
+      if (key === 'keepJournal' && value && !confirm('Keep a local journal?\n\nCheck-in answers and session events will be saved on this computer until you turn this off or delete the journal.')) { el.checked = false; return; }
       void set(key, value);
     });
   }
@@ -109,7 +120,75 @@
     $('voiceNote').textContent = voices.length ? voices.length + ' on-device voices available.' : 'No on-device system voices found. Speech will fall back to text only.';
   }
   window.speechSynthesis?.addEventListener('voiceschanged', fillVoices);
+
+  // ---- Notes
+  function renderNotes(list) {
+    const ul = $('noteList'); ul.replaceChildren();
+    for (const n of list) {
+      const li = document.createElement('li'); const span = document.createElement('span'); span.textContent = n.text;
+      const del = document.createElement('button'); del.type = 'button'; del.textContent = 'Delete'; del.setAttribute('aria-label', 'Delete note: ' + n.text);
+      del.addEventListener('click', async () => { await ui.invoke('notes:remove', n.id); render(await ui.invoke('settings:get')); });
+      li.append(span, del); ul.appendChild(li);
+    }
+    if (!list.length) { const li = document.createElement('li'); li.textContent = 'No notes.'; ul.appendChild(li); }
+  }
+  $('noteAdd').addEventListener('click', async () => {
+    const text = $('noteText').value.trim(); if (!text) return;
+    await ui.invoke('notes:add', text); $('noteText').value = ''; render(await ui.invoke('settings:get')); saved('Note saved.');
+  });
+  $('notesClear').addEventListener('click', async () => { if (confirm('Delete all notes?')) { await ui.invoke('notes:clear'); render(await ui.invoke('settings:get')); } });
+
+  // ---- Check-in editor (adapted from WESTCAT-OVERLAY-RELOADED's question editor)
+  let editing = null;
+  function renderCustom(list) {
+    const ul = $('customList'); ul.replaceChildren();
+    list.forEach((q, i) => {
+      const li = document.createElement('li'); const span = document.createElement('span');
+      span.textContent = q.text + ' — ' + q.choices.map(c => c.label + (c.followUp ? ' (+follow-up)' : '')).join(' / ');
+      const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Edit'; edit.setAttribute('aria-label', 'Edit question: ' + q.text);
+      edit.addEventListener('click', () => loadForm(q, i));
+      const del = document.createElement('button'); del.type = 'button'; del.textContent = 'Delete'; del.setAttribute('aria-label', 'Delete question: ' + q.text);
+      del.addEventListener('click', () => set('customCheckins', current.settings.customCheckins.filter((_, j) => j !== i)));
+      li.append(span, edit, del); ul.appendChild(li);
+    });
+    if (!list.length) { const li = document.createElement('li'); li.textContent = 'None yet. Add one below, or type /ask Question | Answer | Answer in the conversation.'; ul.appendChild(li); }
+  }
+  function clearForm() { editing = null; $('customForm').reset(); $('cq-save').textContent = 'Add question'; }
+  function loadForm(q, index) {
+    clearForm(); editing = index;
+    $('cq-text').value = q.text;
+    q.choices.forEach((c, i) => { $('cq-a' + i).value = c.label; $('cq-r' + i).value = c.reply; });
+    const f = q.choices[0].followUp;
+    if (f) { $('cq-ftext').value = f.text; f.choices.forEach((c, i) => { $('cq-fa' + i).value = c.label; $('cq-fr' + i).value = c.reply; }); }
+    $('cq-save').textContent = 'Save changes'; $('cq-text').focus();
+  }
+  const reply = (value, label) => value.trim() || ('Noted: ' + label.toLowerCase() + '.');
+  $('customForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const choices = [0, 1, 2, 3].map(i => ({label: $('cq-a' + i).value.trim(), reply: $('cq-r' + i).value})).filter(c => c.label).map(c => ({label: c.label, reply: reply(c.reply, c.label), state: 'watching'}));
+    if (choices.length < 2) { saved('A question needs at least two answers.'); return; }
+    const fText = $('cq-ftext').value.trim();
+    const fChoices = [0, 1].map(i => ({label: $('cq-fa' + i).value.trim(), reply: $('cq-fr' + i).value})).filter(c => c.label).map(c => ({label: c.label, reply: reply(c.reply, c.label), state: 'watching'}));
+    if (fText && fChoices.length === 2) choices[0].followUp = {text: fText, choices: fChoices};
+    const list = current.settings.customCheckins.slice();
+    const q = {text: $('cq-text').value.trim(), choices};
+    if (editing !== null && list[editing]) list[editing] = {...q, id: list[editing].id}; else list.push(q);
+    void set('customCheckins', list);
+    clearForm();
+  });
+  $('cq-cancel').addEventListener('click', clearForm);
+
+  // ---- Sessions, voices, speech input
+  $('sessionStart').addEventListener('click', async () => { await ui.invoke('session:start', current.settings.sessionMinutes); render(await ui.invoke('settings:get')); });
+  async function fillPiperVoices() {
+    const voices = await ui.invoke('piper:voices');
+    const pick = $('voicePick'); pick.replaceChildren(new Option(voices.length ? 'Choose…' : 'No voices found in that folder', ''));
+    for (const v of voices) pick.appendChild(new Option(v.name, v.path));
+  }
+  $('voicePick').addEventListener('change', () => { if ($('voicePick').value) void set('piperModel', $('voicePick').value); });
+  document.querySelector('[data-key="piperVoicesDir"]').addEventListener('change', () => setTimeout(fillPiperVoices, 200));
+  $('sttCheck').addEventListener('click', async () => { const r = await ui.invoke('stt:check'); $('sttResult').textContent = r.ok ? 'whisper.cpp program and model found.' : r.problems.join(' '); });
   ui.on('settings:changed', render);
   ui.on('settings:section', id => { const el = document.getElementById(String(id)); if (el) { el.scrollIntoView(); el.querySelector('input,select,button')?.focus(); } });
-  ui.invoke('settings:get').then(data => { render(data); fillVoices(); });
+  ui.invoke('settings:get').then(data => { render(data); fillVoices(); void fillPiperVoices(); });
 })();

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="color-scheme" content="dark">
+  <title>Dexter Inspector</title>
+  <link rel="stylesheet" href="./panel.css">
+</head>
+<body class="inspector">
+  <main class="inspector-main" aria-labelledby="h-inspector">
+    <header class="inspector-head">
+      <div><small>DEXTER · INSPECT</small><h1 id="h-inspector">What he is doing, and why.</h1></div>
+      <span class="legend"><span class="tier tier-verified">verified</span> observed by this app · <span class="tier tier-configured">configured</span> your settings · <span class="tier tier-inferred">inferred</span> a decision</span>
+    </header>
+    <div class="cards">
+      <section class="card" aria-labelledby="c-familiar"><h2 id="c-familiar">Familiar <span class="tier tier-verified">verified</span></h2><dl id="familiar"></dl><ol id="history" class="timeline" aria-label="Recent state changes"></ol></section>
+      <section class="card" aria-labelledby="c-mode"><h2 id="c-mode">Mode <span class="tier tier-configured">configured</span></h2><dl id="mode"></dl></section>
+      <section class="card" aria-labelledby="c-attention"><h2 id="c-attention">Attention <span class="tier tier-inferred">inferred</span></h2><dl id="attention"></dl><ol id="decisions" class="timeline" aria-label="Recent decisions"></ol></section>
+      <section class="card" aria-labelledby="c-session"><h2 id="c-session">Session <span class="tier tier-verified">verified</span></h2><dl id="session"></dl>
+        <div class="actions"><button type="button" id="s-start">Start 50 min</button><button type="button" id="s-pause">Pause</button><button type="button" id="s-resume">Resume</button><button type="button" id="s-stop">End</button></div></section>
+      <section class="card" aria-labelledby="c-services"><h2 id="c-services">Services <span class="tier tier-verified">verified</span></h2><dl id="services"></dl></section>
+      <section class="card" aria-labelledby="c-memory"><h2 id="c-memory">Memory &amp; firewall <span class="tier tier-verified">verified</span></h2><dl id="memory"></dl></section>
+      <section class="card wide" aria-labelledby="c-journal"><h2 id="c-journal">Journal</h2><p id="journalNote" class="note"></p><ol id="journal" class="timeline"></ol></section>
+      <section class="card wide" aria-labelledby="c-audit"><h2 id="c-audit">Self-audit <span class="tier tier-verified">verified</span></h2><p id="auditResult"></p><ul id="audit" class="facts"></ul></section>
+    </div>
+  </main>
+  <script src="./inspector.js"></script>
+</body>
+</html>
