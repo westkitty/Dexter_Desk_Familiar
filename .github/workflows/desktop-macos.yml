@@ -66,3 +66,23 @@ jobs:
           retention-days: 14
           if-no-files-found: error
           compression-level: 0
+      - name: Build, mount, inspect and run DMG-installed app
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        working-directory: desktop
+        run: node scripts/package-dmg.mjs
+      - name: Verify DMG SHA-256
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        working-directory: desktop/out
+        run: shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg.sha256
+      - name: Upload unsigned macOS DMG for hands-on review
+        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dexter-Desktop-macOS-arm64-unsigned-DMG-pr9-${{ github.run_number }}
+          path: |
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg.sha256
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+
