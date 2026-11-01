@@ -92,3 +92,42 @@ Audit date: 2026-11-01. The reference repositories were read only; nothing was c
 | `sandbox:false` (Westcat_Familiar) | Weaker isolation. All Dexter renderers are sandboxed and context-isolated, and the self-audit checks it. |
 | Automatic model download / cloud APIs | Forbidden by the brief. |
 | Visible on all Spaces / full-screen apps (macOS) | Changes activation policy on macOS; deferred until it can be tested physically. |
+
+## Round 2 (desktop 0.3.0-alpha.1): the remaining WestCat features
+
+The owner asked for every remaining WestCat feature to be implemented. Status after PR #12:
+
+| WestCat feature (source) | Dexter implementation | Status |
+|---|---|---|
+| Inspection dashboard: Dexter Inspect, stack status, self-audit view (Westcat_Familiar) | `ui/inspector.*`: an on-demand window with live data and evidence-tier labels | Verified (Linux runtime) |
+| Evidence tiers (Westcat_Familiar `evidence.ts`) | Inspector labels each reading verified, configured or inferred | Implemented |
+| Named modes (Westcat_Familiar `modeManager.ts`) | `core/modes.cjs`: plain, work, build, crisis, dex and quiet. Each layers changes over your settings without rewriting them | Unit-tested and Verified (Linux runtime) |
+| 10-state machine with transitions and auto-return (`familiarStateMachine.ts`) | `core/states.cjs`, mapped onto Dexter's 9 visual states | Unit-tested and Verified (Linux runtime) |
+| Command router (`commandRouter.ts`) | `core/router.cjs`: slash commands, then natural-language intents, then your local model, then an offline reply | Unit-tested and Verified (Linux runtime) |
+| Continuity firewall and long-term memory (`continuityFirewall.ts`) | `core/memory.cjs`: notes you write yourself; they reach the model only if you allow it, and each crossing is counted | Verified (Linux runtime) against the fake model, both closed and open |
+| Context packet (`packetForge.ts`) | `core/packet.cjs`, exported with `/packet` or the panel button as Markdown or JSON | Verified (Linux runtime) |
+| Global summon hotkey (future seam) | Opt-in; one combination from a fixed list | Verified (Linux runtime) registers and releases; **macOS physical-unverified** |
+| Question and quick-question editors (Reloaded) | Settings editor with follow-ups, plus `/ask` | Verified (Linux runtime) |
+| Poll response recording (Reloaded) | Opt-in journal, 0600 file, bounded, deleted when switched off | Verified (Linux runtime) |
+| Typewriter text, drop-in animation, sneeze (Reloaded) | Typewriter bubbles and easing tricks; skipped under reduced motion | Verified (Linux runtime) |
+| Dev panel opened by 5 clicks (Reloaded) | Developer menu opened by 5 quick pokes; only when enabled | Verified (Linux runtime): the menu exists only when enabled |
+| Scripted conversation playback (Reloaded Bryan demo) | `core/scripts.cjs`: a Dexter demonstration | Verified (Linux runtime) |
+| Separate bubble and input windows, saved positions, snap to cat (WestCat macOS) | Optional detached bubble window; the conversation panel remembers its geometry; Snap | Verified (Linux runtime) |
+| Compact mode, retry, Ctrl+Shift+K, last reply on start (WestCat macOS) | All implemented; the shortcut is the opt-in global hotkey | Verified (Linux runtime), except last reply on start (Implemented) |
+| Animation speed (WestCat macOS) | Setting applies to video clips and CSS/WAAPI animations | Implemented |
+| Piper voice list and TTS cache (WestCat macOS) | Voice folder picker; opt-in SHA-256 LRU cache | Unit-tested; voice listing Verified (Linux runtime) |
+| Sessions with cadence and summaries (west_cat_overlay `tracker.py`) | `core/session.cjs`: start, pause, resume and end; halfway and end remarks; session check-in rhythm | Unit-tested and Verified (Linux runtime) with a 3-second session |
+| Questions with follow-ups (west_cat_overlay `questions.json`) | Built-in and custom follow-ups, in Dexter's voice | Verified (Linux runtime) |
+| Microphone / speech input (previously excluded) | Push-to-talk through your own whisper.cpp; permission limited to the panel, audio only, while enabled; usage string in Info.plist | Verified (Linux runtime) with a fake whisper.cpp; **real microphone and macOS permission prompt physical-unverified** |
+| All Spaces / full screen | Opt-in | **macOS physical-unverified** |
+| Native notifications | Opt-in, only when Dexter is hidden | Implemented; not supported on the Linux CI runner; **macOS physical-unverified** |
+
+### Still excluded, with the owner informed
+
+| Item | Reason |
+|---|---|
+| Allowlisted shell execution (Westcat_Familiar future seam) | With a model in the loop, a prompt injection becomes code execution on the Mac. WestCat never shipped it either. |
+| Fable / cloud model routing | The brief forbids automatic external API calls. The router only uses local paths. |
+| Hardcoded Tailscale host (WestCat macOS) | The brief forbids personal IPs. A remote host is already possible through explicit opt-in. |
+| Mock data collections | Replaced by real data in the Inspector. |
+| Multi-window network sync (Reloaded), SVG vectorize tools (west_cat_overlay) | No function for a single local familiar with raster art. |

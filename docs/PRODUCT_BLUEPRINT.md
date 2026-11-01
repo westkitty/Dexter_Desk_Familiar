@@ -7,7 +7,14 @@ Dexter is a small, character-first familiar in two independent editions: a bound
 
 - **Dexter Web:** the existing dependency-free offline PWA. Browser-only interaction sensing, no access to other applications, no global input capture, no added Electron runtime, no mandatory server.
 - **Dexter Desktop:** an isolated macOS native host for the same behavioral states and approved media; transparent floating window, opt-in topmost and pass-through controls, native placement and local settings. The macOS shell does **not** authorize global activity inspection, app control, telemetry or recording. The desktop edition must be packaged and validated separately.
-- **Desktop optional modules (accepted November 1, 2026, WestCat parity brief):** a conversation panel, an *opt-in* local Ollama-compatible model connection (loopback by default, nothing downloaded, explicit confirmation), *opt-in* speech output (on-device system voices or a user-installed Piper), *opt-in* Dexter-voiced check-ins, and a settings/diagnostics window. Every module is off by default, degrades to Dexter's ordinary local behavior, and is excluded from the web edition. Microphone input, speech recognition, global hotkeys and any activity, screen or app observation remain **out of scope**. See `docs/WESTCAT_PARITY_MATRIX.md`.
+- **Desktop optional modules (accepted November 1, 2026, WestCat parity brief):** a conversation panel, an *opt-in* local Ollama-compatible model connection (loopback by default, nothing downloaded, explicit confirmation), *opt-in* speech output (on-device system voices or a user-installed Piper), *opt-in* Dexter-voiced check-ins, and a settings/diagnostics window. Every module is off by default, degrades to Dexter's ordinary local behavior, and is excluded from the web edition. Activity, screen or app observation, and shell command execution remain **out of scope**. See `docs/WESTCAT_PARITY_MATRIX.md`.
+- **Desktop round 2 (accepted November 1, 2026, owner: "implement them all"):**
+  - Modes, sessions, an inspector, notes behind a firewall, a check-in editor and an opt-in journal.
+  - An opt-in global shortcut, chosen from a fixed list.
+  - Opt-in push-to-talk speech input: it records only between two clicks, transcribes locally with a user-installed whisper.cpp, and never sends automatically.
+  - Opt-in display on every Space and opt-in notifications.
+
+  All of this is off by default where it touches privacy. Cloud model routing and running shell commands from chat stay excluded.
 - No direct import of WESTCAT implementation. Adapt the useful window behavior conceptually while preserving the independent Dexter project and its art rules.
 - Source alpha and packaged macOS smoke verification are tracked in `OPERATIONAL_STATE.md`; neither overrides the installation, pointer, signed-release and accessibility gates.
 

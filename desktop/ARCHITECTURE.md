@@ -6,6 +6,8 @@
 │ core/ollama.cjs ── only network client, opt-in, loopback default                     │
 │ core/persona.cjs · core/attention.cjs · core/conversation.cjs · core/events.cjs      │
 │ core/diagnostics.cjs · core/tts-piper.cjs · protocol dexter://app (allowlisted files)│
+│ 0.3: core/modes · states · router · checkins · session · journal · memory · packet   │
+│      · scripts · stt-whisper · tts-cache                                              │
 └──────────┬─────────────────────────┬───────────────────────────┬────────────────────┘
    preload.cjs (pet)        preload-ui.cjs (chat)        preload-ui.cjs (settings)
 ┌──────────┴──────────┐   ┌──────────┴──────────┐     ┌──────────┴──────────┐
@@ -26,6 +28,23 @@
    - `dexter-desktop-intensity` replaces the ambient attention budget.
 3. **Main process is the source of truth** for preferences. The renderer receives a sanitized subset (`dexter:prefs`) and mirrors it into the web controls, which are hidden on desktop.
 4. **Every persisted value is re-validated** (`sanitizeSettings`). Out-of-range values fall back to defaults; they are never clamped. Opacity is at least 40%, and click-through is never persisted.
+
+## Round-2 modules (0.3.0)
+
+| Module | Role |
+|---|---|
+| `core/modes.cjs` | A mode is computed as `effectiveSettings(settings)` at runtime and used by the attention arbiter, check-ins, tricks and the pet's preferences; it is never written into stored settings |
+| `core/states.cjs` | Semantic states (thinking, alert, blocked, summoning…) with allowed transitions and auto-return; each is rendered by sending its visual state over the existing priority bus |
+| `core/router.cjs` | Slash command → intent → local model → offline reply. There is no cloud path |
+| `core/checkins.cjs` | Built-in and custom check-ins, follow-ups (answer path `[i]` or `[i, j]`), no repeats until all have been asked |
+| `core/session.cjs` | Session timing with pauses; main arms a single timer for the next milestone |
+| `core/journal.cjs`, `core/memory.cjs` | Opt-in local records (0600, bounded, deleted when switched off) and user-written notes behind a counted firewall |
+| `core/stt-whisper.cjs`, `audio-wav.js` | The panel records with MediaRecorder, decodes, downsamples to 16 kHz WAV, and main runs whisper.cpp (`shell:false`, private temp folder, deleted) |
+| `ui/inspector.*`, `ui/bubble.*` | On-demand windows, sandboxed, destroyed on close; the bubble window is non-focusable |
+
+**Permissions:** the session handler refuses every permission except `media` with audio only, from the conversation panel's `webContents`, while `sttEnabled` is true. On macOS the app asks for microphone access only when the record button is pressed. `NSMicrophoneUsageDescription` is in Info.plist, and `verify-macos.mjs` requires it.
+
+**Global shortcut:** registered only from a fixed list, unregistered when changed and on quit. Electron's `globalShortcut` reports only that one combination; no other keys are observed.
 
 ## Security boundaries
 
