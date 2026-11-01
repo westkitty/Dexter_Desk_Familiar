@@ -206,15 +206,32 @@ async function runSmokeTest() {
       const treated=pet.dataset.state==='eating';
       mode.checked=true;mode.dispatchEvent(new Event('change',{bubbles:true}));
       const celEnabled=pet.dataset.artMode==='cel';
+      const video=document.getElementById('celVideo');
+      let decodedEver=false;
+      const observeDecode=()=>{if(video.videoWidth>0 && !video.hidden)decodedEver=true;};
+      video.addEventListener('loadeddata',observeDecode);
+      video.addEventListener('playing',observeDecode);
       const selection=document.getElementById('celClipSelect');
       selection.value='slow_blink';
       selection.dispatchEvent(new Event('change',{bubbles:true}));
-      await new Promise(resolve=>setTimeout(resolve,800));
+      // Freshly copied unsigned apps can cold-start the video decoder more slowly
+      // than an already launched bundle. Observe the whole load, not one 800ms tick.
+      await new Promise(resolve=>{
+        const deadline=performance.now()+4500;
+        const id=setInterval(()=>{
+          observeDecode();
+          if(decodedEver || performance.now()>=deadline){
+            clearInterval(id);resolve();
+          }
+        },50);
+      });
+      observeDecode();
       const celReady=celEnabled && Boolean(media) &&
-        (!document.getElementById('celVideo').hidden || !document.getElementById('celPoster').hidden);
-      const celDecoded=Boolean(document.getElementById('celVideo').videoWidth) &&
-        !document.getElementById('celVideo').hidden;
+        (!video.hidden || !document.getElementById('celPoster').hidden);
+      const celDecoded=decodedEver;
       const celStatus=document.getElementById('celStatus').textContent;
+      video.removeEventListener('loadeddata',observeDecode);
+      video.removeEventListener('playing',observeDecode);
       mode.checked=false;mode.dispatchEvent(new Event('change',{bubbles:true}));
       return {bridge,dockHidden,pixel,poke,treated,celReady,celDecoded,celStatus,css,
         origin:location.origin,state:pet.dataset.state,desktop:document.body.dataset.desktop};
@@ -227,6 +244,8 @@ async function runSmokeTest() {
        (report.css!=='rgba(0, 0, 0, 0)' && report.css!=='transparent')) {
       throw new Error('Smoke assertions failed: '+JSON.stringify(report));
     }
+    if(process.env.DEXTER_DESKTOP_SMOKE_REQUIRE_VIDEO==='1' && !report.celDecoded)
+      throw new Error('Expected the approved cel WebM to decode in the copied app: '+report.celStatus);
     if (!win.isAlwaysOnTop()) throw new Error('Floating-window policy not applied');
     const denied=await net.fetch('dexter://app/main.cjs');
     const rangeResponse=await net.fetch('dexter://app/assets/cel-shaded/clips/slow_blink.webm',{
