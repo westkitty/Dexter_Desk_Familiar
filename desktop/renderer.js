@@ -84,6 +84,10 @@ if (native) {
   bubble.querySelector('.desktop-bubble-close').addEventListener('click', () => hideBubble(true));
   bubbleMore.addEventListener('click', () => { hideBubble(true); native.openChat(); });
   native.onBubble(showBubble);
+  native.onNearTop(isNearTop => {
+    document.body.classList.toggle('desktop-near-top', Boolean(isNearTop));
+    cachedMask.source = null;
+  });
 
   // ------------------------------------------------------------ hit testing
   function visibleMedia() {

@@ -168,6 +168,11 @@ function setPassThrough(on) {
 }
 
 // ---------------------------------------------------------------- geometry
+function checkNearTop(winPos, displayArea) {
+  if (!alive(state.win) || !winPos || !displayArea) return;
+  const isNearTop = winPos.y <= displayArea.y + 100;
+  sendPet('dexter:near-top', isNearTop);
+}
 function reposition(delta) {
   if (!alive(state.win)) return;
   state.lastUserDragTime = Date.now();
@@ -178,13 +183,16 @@ function reposition(delta) {
   const target = screen.getDisplayNearestPoint({x: state.dragVirtual.x + Math.floor(current.width / 2), y: state.dragVirtual.y + Math.floor(current.height / 2)}).workArea;
   const position = ws.clampPosition(state.dragVirtual, target, current, {allowHeadroomBleed: true});
   state.win.setPosition(position.x, position.y);
+  checkNearTop(position, target);
 }
 function placeWindow() {
   const size = ws.petWindowSize(state.settings.scale);
   const saved = state.settings.x !== null && state.settings.y !== null;
   const display = (saved ? screen.getDisplayNearestPoint({x: state.settings.x + Math.floor(size.width / 2), y: state.settings.y + Math.floor(size.height / 2)}) : screen.getPrimaryDisplay()).workArea;
   const candidate = {x: saved ? state.settings.x : display.x + display.width - size.width - 28, y: saved ? state.settings.y : display.y + display.height - size.height - 28};
-  state.win.setBounds({...size, ...ws.clampPosition(candidate, display, size, {allowHeadroomBleed: true})});
+  const clamped = ws.clampPosition(candidate, display, size, {allowHeadroomBleed: true});
+  state.win.setBounds({...size, ...clamped});
+  checkNearTop(clamped, display);
 }
 function rescale() {
   if (!alive(state.win)) return;
@@ -463,6 +471,9 @@ function createPetWindow() {
     win.webContents.executeJavaScript('document.body.dataset.desktop = "true"').catch(() => {});
     sendPrefs();
     if (state.settings.art !== 'pixel') emit(state.settings.art);
+    const bounds = win.getBounds();
+    const display = screen.getDisplayNearestPoint({x: bounds.x + Math.floor(bounds.width / 2), y: bounds.y + Math.floor(bounds.height / 2)}).workArea;
+    checkNearTop(bounds, display);
   });
   win.webContents.on('render-process-gone', (_event, details) => recoverRenderer(details));
   win.webContents.on('unresponsive', () => events.record('error', 'renderer-unresponsive', {}));

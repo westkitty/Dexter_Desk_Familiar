@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('dexterDesktop', Object.freeze({
   synthesize(text) { return typeof text === 'string' ? ipcRenderer.invoke('dexter:piper', text.slice(0, 1000)) : Promise.reject(new Error('text required')); },
   cancelSynthesis() { ipcRenderer.send('dexter:piper-cancel'); },
   onAction(callback) { return subscribe('dexter:action', a => ACTIONS.has(a) ? a : undefined, callback); },
+  onNearTop(callback) { return subscribe('dexter:near-top', v => Boolean(v), callback); },
   onPrefs(callback) { return subscribe('dexter:prefs', plain, callback); },
   onSignal(callback) { return subscribe('dexter:signal', plain, callback); },
   onBubble(callback) { return subscribe('dexter:bubble', plain, callback); },
