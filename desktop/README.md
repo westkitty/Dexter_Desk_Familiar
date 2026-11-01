@@ -16,21 +16,25 @@ npm run check
 npm start
 ```
 
-Build a standalone unsigned development bundle:
+Build an ad-hoc-signed development bundle (not Developer ID notarized):
 
 ```sh
 npm run package:mac
 ```
 
-Build a drag-to-Applications **unsigned DMG** (run in `desktop/`):
+Build a drag-to-Applications **ad-hoc-signed review DMG** (run in `desktop/`):
 
 ```sh
 npm run package:dmg
 ```
 
-This builds the app, creates `desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg`, mounts the read-only image, verifies its app payload and `Applications` shortcut, copies the app to an isolated install-test directory, and runs the real Electron smoke before writing a matching `.dmg.sha256` file. The builder refuses to overwrite an existing DMG or checksum; archive earlier outputs before rebuilding. **It does not sign, notarize, or install the app.**
+This builds the app, creates `desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg`, mounts the read-only image, verifies its app payload and `Applications` shortcut, copies the app to an isolated install-test directory, and runs the real Electron smoke before writing a matching `.dmg.sha256` file. The builder refuses to overwrite an existing DMG or checksum; archive earlier outputs before rebuilding. It **ad-hoc signs** the Electron bundle and verifies the complete sealed signature before packaging. It does not apply a Developer ID signature, notarize, or install the app.
 
-Use the app from `desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app`. Do not assume it is Gatekeeper approved. The source package locks Electron 45.2.1 and @electron/packager 20.3.0. The produced bundle has a native Dexter icon, but remains unsigned; double-click installation can be rejected by Gatekeeper.
+Use the app from `desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app`. Do not assume it is Gatekeeper approved. The source package locks Electron 45.2.1 and @electron/packager 20.3.0. The produced bundle has a native Dexter icon and a verified **ad-hoc** signature; Gatekeeper may still reject it because it has no Apple Developer ID and no notarization ticket.
+
+## November 1, 2026 — correction for a broken prior DMG
+
+The earlier `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg` must not be reused. MacOS `codesign --verify --deep --strict` failed with **"code has no resources but signature indicates they must be present"** even though the DMG digest and unquarantined runtime smoke passed. The build now ad-hoc signs every nested Electron helper and the outer bundle, verifies sealed resources, and refuses to package a bad signature at source/mounted/copied-out stages. A valid signature **does not constitute Developer ID trust or notarization**; manually test the repaired build's Gatekeeper path.
 
 ## Verified macOS alpha evidence (October 31, 2026)
 
@@ -54,7 +58,7 @@ Core files from the current PWA are copied to an **ignored** staging folder; onl
 
 Draft [PR #9](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) runs the **Dexter desktop macOS alpha checks** workflow. Once its test job passes, it uploads a short-lived GitHub Actions artifact named `Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-*` (14-day retention). A GitHub sign-in may be necessary.
 
-For a drag-and-drop installation, use the separate `Dexter-Desktop-macOS-arm64-unsigned-DMG-pr9-*` workflow artifact when its checks succeed. The Actions archive contains the **actual** `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg` plus a matching `.dmg.sha256` checksum. Open the DMG and drag **Dexter Desk Familiar.app** to **Applications**. A ZIP-only legacy alpha artifact is also maintained separately.
+For a drag-and-drop installation, use the separate `Dexter-Desktop-macOS-arm64-adhoc-DMG-pr9-*` workflow artifact when its checks succeed. The Actions archive contains the **actual** `Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg` plus a matching `.dmg.sha256` checksum. Open the DMG and drag **Dexter Desk Familiar.app** to **Applications**. A ZIP-only legacy alpha artifact is also maintained separately.
 
 For exact download, checksum, Gatekeeper, physical mouse and accessibility checks, read [MACBOOK_QA.md](./MACBOOK_QA.md).
 
