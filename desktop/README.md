@@ -58,7 +58,7 @@ Requires Node.js 22. Run these in `desktop/`:
 
 ```sh
 npm ci --no-audit --no-fund
-npm run check          # syntax, 47 unit tests, stage the payload
+npm run check          # syntax, 49 unit tests, stage the payload
 npm start              # run in development
 npm run smoke          # full runtime smoke in a disposable profile
 npm run package:mac    # ad-hoc signed arm64 .app; fails unless deep strict signature verifies

@@ -6,7 +6,8 @@ Dexter is a small, character-first familiar in two independent editions: a bound
 ## Edition boundary — accepted October 31, 2026
 
 - **Dexter Web:** the existing dependency-free offline PWA. Browser-only interaction sensing, no access to other applications, no global input capture, no added Electron runtime, no mandatory server.
-- **Dexter Desktop:** an isolated macOS native host for the same behavioral states and approved media; transparent floating window, opt-in topmost and pass-through controls, native placement and local settings. The macOS shell does **not** authorize global activity inspection, app control, AI services, telemetry or recording. The desktop edition must be packaged and validated separately.
+- **Dexter Desktop:** an isolated macOS native host for the same behavioral states and approved media; transparent floating window, opt-in topmost and pass-through controls, native placement and local settings. The macOS shell does **not** authorize global activity inspection, app control, telemetry or recording. The desktop edition must be packaged and validated separately.
+- **Desktop optional modules (accepted November 1, 2026, WestCat parity brief):** a conversation panel, an *opt-in* local Ollama-compatible model connection (loopback by default, nothing downloaded, explicit confirmation), *opt-in* speech output (on-device system voices or a user-installed Piper), *opt-in* Dexter-voiced check-ins, and a settings/diagnostics window. Every module is off by default, degrades to Dexter's ordinary local behavior, and is excluded from the web edition. Microphone input, speech recognition, global hotkeys and any activity, screen or app observation remain **out of scope**. See `docs/WESTCAT_PARITY_MATRIX.md`.
 - No direct import of WESTCAT implementation. Adapt the useful window behavior conceptually while preserving the independent Dexter project and its art rules.
 - Source alpha and packaged macOS smoke verification are tracked in `OPERATIONAL_STATE.md`; neither overrides the installation, pointer, signed-release and accessibility gates.
 
@@ -39,7 +40,7 @@ A standalone PWA with three supplied-reference-derived pixel poses, 9 named stat
 - Neither integration is necessary for the offline web version; they cannot be silently added.
 
 ## Non-goals
-Not an AI chatbot, task manager, note store, keylogger, general browser extension, global telemetry collector, WESTCAT rewrite, or Starsilk experience. The **web edition** is not a native macOS app; the independent desktop edition is an explicitly authorized product extension.
+Not an AI assistant product, task manager, note store, keylogger, general browser extension, global telemetry collector, WESTCAT rewrite, or Starsilk experience. The web edition has no AI at all. The desktop edition's optional local conversation is a way to talk *to Dexter*, in his voice. It is off by default and never the main experience. The **web edition** is not a native macOS app; the independent desktop edition is an explicitly authorized product extension.
 
 ## Acceptance
 Every state reachable by a local trigger or deterministic time, coherent sprite identity at working size, quiet mode respected, keyboard and touch actions work, no input text persisted, actual offline repeat load, no outbound application requests beyond browser-managed own-origin updates, PWA install tested on supported browsers, layout intact at phone/desktop sizes.

@@ -55,7 +55,7 @@ Anything Dexter starts by himself (check-ins and lifecycle reactions) goes throu
 
 | Layer | Where | What it proves |
 |---|---|---|
-| Unit | `tests/*.test.cjs` (47) | Schema, policies, streaming parser, cancellation, arbiter, persistence, redaction, queue, Piper process handling |
+| Unit | `tests/*.test.cjs` (49) | Schema, policies, streaming parser, cancellation, arbiter, persistence, redaction, queue, Piper process handling |
 | Runtime smoke | `smoke.cjs`, Linux/Xvfb CI and macOS packaged/DMG CI | Real Electron wiring for every subsystem, using synthetic DOM events and a loopback fake model |
 | Egress audit | Linux CI under `strace` | No non-loopback socket activity during the full smoke |
 | Packaging | `scripts/verify-macos.mjs`, `scripts/package-dmg.mjs` | Signature integrity at every handoff, DMG layout, copied-app launch, quit/relaunch |
