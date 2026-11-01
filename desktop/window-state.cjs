@@ -21,6 +21,14 @@ const TTS_ENGINES = Object.freeze(['system', 'piper']);
 const TEXT_SIZES = Object.freeze(['small', 'medium', 'large']);
 const ARTS = Object.freeze(['pixel', 'cel', 'atlas']);
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:11434';
+const MODES = Object.freeze(['plain', 'work', 'build', 'crisis', 'dex', 'quiet']);
+const CHECKIN_SOURCES = Object.freeze(['mixed', 'builtin', 'custom']);
+const SESSION_MINUTES = Object.freeze([25, 50, 90, 120]);
+const SESSION_CHECKIN_MINUTES = Object.freeze([10, 15, 25, 30]);
+// Fixed choices only: a free-form accelerator could collide with system shortcuts.
+const HOTKEYS = Object.freeze(['', 'CommandOrControl+Shift+K', 'CommandOrControl+Shift+D', 'Alt+Shift+D']);
+const BUBBLE_MODES = Object.freeze(['pet', 'window']);
+const MAX_CUSTOM_CHECKINS = 30;
 
 const DEFAULTS = Object.freeze({
   // Appearance
@@ -42,6 +50,14 @@ const DEFAULTS = Object.freeze({
   checkinsEnabled: false, checkinMinutes: 60, checkinQuietHours: true, eventReactions: true,
   // Accessibility
   bubbleTextSize: 'medium', highContrastBubble: false,
+  // WestCat parity, round 2 (all optional; privacy-sensitive ones off)
+  mode: 'plain', checkinSource: 'mixed', customCheckins: [], keepJournal: false,
+  sessionMinutes: 50, sessionCheckinMinutes: 25,
+  typewriter: true, typewriterCps: 45, gags: true, animationSpeed: 1, developerTools: false,
+  chatCompact: false, chatBounds: null, bubbleMode: 'pet', bubbleBounds: null, showLastReplyOnStart: false,
+  globalHotkey: '', piperVoicesDir: '', ttsCache: false,
+  sttEnabled: false, whisperPath: '', whisperModel: '', notesInContext: false,
+  allSpaces: false, nativeNotifications: false,
   // Legacy (read for migration only)
   size: 'medium'
 });
@@ -85,6 +101,45 @@ function validateEndpoint(value, {allowRemote = false} = {}) {
   const loopback = isLoopbackHost(url.hostname);
   if (!loopback && !allowRemote) return {ok: false, loopback, reason: 'Non-local endpoints require “Allow a non-local endpoint”.'};
   return {ok: true, loopback, url: url.origin};
+}
+
+function rect(value, withSize) {
+  if (!value || typeof value !== 'object') return null;
+  const ok = n => Number.isInteger(n) && Math.abs(n) < 100000;
+  if (!ok(value.x) || !ok(value.y)) return null;
+  if (!withSize) return {x: value.x, y: value.y};
+  if (!ok(value.width) || !ok(value.height) || value.width < 200 || value.height < 200 || value.width > 2000 || value.height > 2000) return null;
+  return {x: value.x, y: value.y, width: value.width, height: value.height};
+}
+// User-authored check-ins (adapted from WESTCAT-OVERLAY-RELOADED's question editor).
+// Each: {id, text, choices:[{label, reply, state, followUp?:{text, choices:[{label, reply, state}]}}]}
+const CHOICE_STATES = Object.freeze(['idle', 'watching', 'judging', 'huffing', 'resting']);
+function sanitizeChoices(list, allowFollowUp) {
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 4).map(c => {
+    if (!c || typeof c !== 'object') return null;
+    const label = shortText(c.label, 40), reply = shortText(c.reply, 200);
+    if (!label || !reply) return null;
+    const out = {label, reply, state: oneOf(c.state, CHOICE_STATES, 'watching')};
+    if (allowFollowUp && c.followUp && typeof c.followUp === 'object') {
+      const text = shortText(c.followUp.text, 160), choices = sanitizeChoices(c.followUp.choices, false);
+      if (text && choices.length >= 2) out.followUp = {text, choices};
+    }
+    return out;
+  }).filter(Boolean);
+}
+function sanitizeCustomCheckins(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  return list.slice(0, MAX_CUSTOM_CHECKINS).map(q => {
+    if (!q || typeof q !== 'object') return null;
+    const text = shortText(q.text, 160), choices = sanitizeChoices(q.choices, true);
+    let id = typeof q.id === 'string' && /^c-[a-z0-9]{1,24}$/.test(q.id) ? q.id : null;
+    if (!text || choices.length < 2) return null;
+    if (!id || seen.has(id)) id = 'c-' + Math.random().toString(36).slice(2, 10);
+    seen.add(id);
+    return {id, text, choices};
+  }).filter(Boolean);
 }
 
 function sanitizeSettings(candidate) {
@@ -131,6 +186,31 @@ function sanitizeSettings(candidate) {
     bubbleTextSize: oneOf(v.bubbleTextSize, TEXT_SIZES, d.bubbleTextSize),
     highContrastBubble: bool(v.highContrastBubble, d.highContrastBubble)
   };
+  s.mode = oneOf(v.mode, MODES, d.mode);
+  s.checkinSource = oneOf(v.checkinSource, CHECKIN_SOURCES, d.checkinSource);
+  s.customCheckins = sanitizeCustomCheckins(v.customCheckins);
+  s.keepJournal = bool(v.keepJournal, d.keepJournal);
+  s.sessionMinutes = oneOf(v.sessionMinutes, SESSION_MINUTES, d.sessionMinutes);
+  s.sessionCheckinMinutes = oneOf(v.sessionCheckinMinutes, SESSION_CHECKIN_MINUTES, d.sessionCheckinMinutes);
+  s.typewriter = bool(v.typewriter, d.typewriter);
+  s.typewriterCps = numberIn(v.typewriterCps, 15, 120, d.typewriterCps, 5);
+  s.gags = bool(v.gags, d.gags);
+  s.animationSpeed = numberIn(v.animationSpeed, 0.5, 2, d.animationSpeed, 0.25);
+  s.developerTools = bool(v.developerTools, d.developerTools);
+  s.chatCompact = bool(v.chatCompact, d.chatCompact);
+  s.chatBounds = rect(v.chatBounds, true);
+  s.bubbleMode = oneOf(v.bubbleMode, BUBBLE_MODES, d.bubbleMode);
+  s.bubbleBounds = rect(v.bubbleBounds, false);
+  s.showLastReplyOnStart = bool(v.showLastReplyOnStart, d.showLastReplyOnStart);
+  s.globalHotkey = oneOf(v.globalHotkey, HOTKEYS, d.globalHotkey);
+  s.piperVoicesDir = absolutePathOrEmpty(v.piperVoicesDir);
+  s.ttsCache = bool(v.ttsCache, d.ttsCache);
+  s.sttEnabled = bool(v.sttEnabled, d.sttEnabled);
+  s.whisperPath = absolutePathOrEmpty(v.whisperPath);
+  s.whisperModel = absolutePathOrEmpty(v.whisperModel);
+  s.notesInContext = bool(v.notesInContext, d.notesInContext);
+  s.allSpaces = bool(v.allSpaces, d.allSpaces);
+  s.nativeNotifications = bool(v.nativeNotifications, d.nativeNotifications);
   // Legacy compatibility for older readers and tests.
   s.size = Object.hasOwn(SIZES, v.size) ? v.size : d.size;
   // The endpoint is kept only when it passes the same policy used at connect time.
@@ -148,6 +228,8 @@ function mergeSettings(current, patch) {
   const next = {...current};
   for (const key of Object.keys(DEFAULTS)) if (Object.hasOwn(patch, key)) next[key] = patch[key];
   if (Object.hasOwn(patch, 'scale')) delete next.size;
+  // Programmatic geometry keys are owned by the main process, not the settings UI.
+  for (const key of ['chatBounds', 'bubbleBounds']) if (Object.hasOwn(patch, key) && patch[key] !== null) next[key] = current[key];
   return sanitizeSettings(next);
 }
 
@@ -211,7 +293,8 @@ function isWithinRoot(root, requested) {
 }
 module.exports = {
   SIZES, DEFAULTS, SCALE, OPACITY, INTENSITIES, MOTION, IDLE_OPTIONS, CHECKIN_MINUTES, TTS_ENGINES,
-  TEXT_SIZES, DEFAULT_ENDPOINT,
+  TEXT_SIZES, DEFAULT_ENDPOINT, MODES, CHECKIN_SOURCES, SESSION_MINUTES, SESSION_CHECKIN_MINUTES, HOTKEYS, BUBBLE_MODES,
+  sanitizeCustomCheckins, MAX_CUSTOM_CHECKINS,
   sanitizeSettings, mergeSettings, validateEndpoint, isLoopbackHost,
   dimensions, petWindowSize, clampPosition, resizeAnchored, recoverBounds, intersects, panelBeside,
   shouldIgnoreMouse, isWithinRoot
