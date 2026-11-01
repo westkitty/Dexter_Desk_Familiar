@@ -1,16 +1,17 @@
 # Dexter Desktop — target MacBook acceptance checklist
 
-**Artifact:** `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip` from the Dexter desktop GitHub Actions run associated with draft PR #9. The artifact supplied by Actions is an **outer archive** containing this ZIP and its `.sha256` proof. It is an unsigned internal **test build**, not a public, notarized release.
+**Preferred artifact:** `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg`. This is an unsigned **internal alpha review build** from draft PR #9, not an Apple Developer ID signed/notarized public release. The previous ZIP-only alpha remains an alternative.
 
 ## Acquire and verify
 
-1. Open [the draft desktop PR](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9), select its **Checks** tab, open the **Dexter desktop macOS alpha checks** workflow run and download its `Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-*` artifact. A GitHub sign-in may be required.
-2. Unzip the downloaded **Actions artifact**. Verify the inner ZIP using the provided `.sha256` checksum:
+1. Download the `.dmg` and its matching `.dmg.sha256` through ChatGPT, or open [the desktop PR's Checks tab](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) and download a successful `Dexter-Desktop-macOS-arm64-unsigned-DMG-pr9-*` artifact. GitHub Actions downloads arrive as an **outer ZIP** containing the DMG and checksum.
+2. With both files in the same folder, verify:
    ```sh
-   shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip.sha256
+   shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg.sha256
    ```
-3. Extract the inner `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip`, then move `Dexter Desk Familiar.app` into `~/Applications` (or `/Applications` if preferred).
-4. The app is unsigned and not notarized. macOS Gatekeeper may stop first launch. Do **not** globally disable Gatekeeper or use a blanket `xattr -dr` command. If you decide to trust this specific tested bundle, attempt opening it and use macOS **System Settings → Privacy & Security → Open Anyway** where macOS offers that choice.
+3. Open the DMG. Drag **Dexter Desk Familiar.app** onto the **Applications** shortcut in the mounted volume. Eject the volume before starting the copied application.
+4. The app is unsigned and not notarized. macOS Gatekeeper may stop first launch. Do **not** globally disable Gatekeeper or run a blanket `xattr -dr` command. If you trust this specific verified review build, open the copied app and use **System Settings → Privacy & Security → Open Anyway** if macOS offers that option.
+5. For the older ZIP alternative, verify its own `.zip.sha256`, extract the application, and move it to Applications; never mix the ZIP and DMG checksums.
 
 ## Essential real-device acceptance
 
@@ -27,6 +28,6 @@
 
 ## Report failures with evidence
 
-Record: macOS version, Mac architecture, exact ZIP SHA, expected versus observed behavior, repeat steps, timestamp, and (if possible) a small screen capture with personal information removed. Do not expose Terminal secrets, system paths or private content.
+Record: macOS version, Mac architecture, exact DMG SHA-256 (or ZIP SHA for the ZIP route), expected versus observed behavior, repeat steps, timestamp, and (if possible) a small screen capture with personal information removed. Do not expose Terminal secrets, system paths or private content.
 
 **No automatic promotion:** Passing source tests or macOS CI does not replace physical click-through proof. Only advance PR #9 from draft after reviewing target MacBook results. Signing and notarization require an additional authorized release procedure.
