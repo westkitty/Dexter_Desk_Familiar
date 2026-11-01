@@ -7,7 +7,7 @@ A small, judgmental black dog who floats beside your work. This is the native de
 
 ## Install (Apple Silicon)
 
-1. Download the `Dexter-Desktop-macOS-arm64-adhoc-DMG-*` artifact from a successful **Dexter desktop macOS alpha checks** run on the desktop pull request. GitHub delivers it as a ZIP that contains the DMG and a `.sha256` file.
+1. Open the repository's **Actions** tab → **Dexter desktop macOS alpha checks** → the latest successful run on `main`, and download the `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-*` artifact (kept for 90 days). GitHub delivers it as a ZIP containing the DMG and its `.sha256` file. The root `README.md` records the checksum of the current `main` build.
 2. Verify the checksum, with both files in the same folder:
    ```sh
    shasum -a 256 -c Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg.sha256
@@ -71,5 +71,5 @@ The DMG builder refuses to overwrite an existing DMG or checksum. Electron 45.2.
 
 ## History
 
-- **0.2.0-alpha.1 (2026-11-01):** WestCat parity work. Added conversation, optional local AI and speech, check-ins, a settings window, diagnostics, recovery hardening, display handling and fixed position persistence. Also added the Linux runtime and egress CI, and the versioned DMG with relaunch verification. The legacy ZIP artifact has been retired in favor of the DMG.
+- **0.2.0-alpha.1 (2026-11-01, merged to `main` via PRs #10 and #9):** WestCat parity work. Added conversation, optional local AI and speech, check-ins, a settings window, diagnostics, recovery hardening, display handling and fixed position persistence. Also added the Linux runtime and egress CI, and the versioned DMG with relaunch verification. The legacy ZIP artifact has been retired in favor of the DMG.
 - **0.1.0-alpha.1 (2026-10-31):** first native overlay, alpha hit testing, tray recovery and ad-hoc signed DMG (PR #9). The earlier `…unsigned_alpha.dmg` had a broken signature and must not be reused.

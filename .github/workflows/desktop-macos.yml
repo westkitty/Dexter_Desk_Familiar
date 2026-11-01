@@ -3,7 +3,7 @@ on:
   pull_request:
     paths: ['desktop/**', '.github/workflows/desktop-macos.yml', 'app.js', 'index.html', 'styles.css', 'src/**', 'assets/**']
   push:
-    branches: ['feature/desktop-overlay-v1-20261031']
+    branches: [main]
     paths: ['desktop/**', '.github/workflows/desktop-macos.yml']
   workflow_dispatch:
 permissions:
@@ -94,21 +94,21 @@ jobs:
           fi
           echo "Synthetic in-app checks only. Physical pointer click-through is NOT verified by CI."
       - name: Build, mount, verify, copy out, launch and relaunch the DMG app
-        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         working-directory: desktop
         run: node scripts/package-dmg.mjs
       - name: Verify DMG SHA-256
-        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         working-directory: desktop/out
         run: shasum -a 256 -c Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg.sha256
       - name: Upload ad-hoc macOS DMG for hands-on review (not notarized)
-        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: actions/upload-artifact@v4
         with:
-          name: Dexter-Desktop-macOS-arm64-adhoc-DMG-${{ github.event.pull_request.number || 'manual' }}-${{ github.run_number }}
+          name: Dexter-Desktop-macOS-arm64-adhoc-DMG-${{ github.event.pull_request.number || github.ref_name }}-${{ github.run_number }}
           path: |
             desktop/out/Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg
             desktop/out/Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg.sha256
-          retention-days: 14
+          retention-days: ${{ github.ref == 'refs/heads/main' && 90 || 14 }}
           if-no-files-found: error
           compression-level: 0
