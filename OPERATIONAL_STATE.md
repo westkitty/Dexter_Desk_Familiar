@@ -229,3 +229,17 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
 - **Current DMG:** `Dexter_Desk_Familiar_0.3.0-alpha.1_macOS_arm64_adhoc.dmg`, SHA-256 `4fc0716ec7e07873a7e58af4f74564ea5e3bbfa373d32bf0227d22a78e10e104`, artifact `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-125` (ID 13075635408, 90 days). This supersedes the earlier `0b3332ce…` and PR-built artifacts.
 - **Branches:** 11 remote branches have no commits outside `main`. Deleting them was refused by this session's safety policy, so it was not done; the owner can delete them or allow it.
 - **Deliberately not merged:** `uplift/presence-cadence-20261029`. Its one commit (`5478a36`) conflicts in 20 files, including `sw.js` and `app.js`; it carries the obsolete service worker this file already forbids merging, and its useful parts were superseded by PR #6. It was left untouched for the owner to archive or delete.
+
+## 2026-11-01 — Branch review, extraction and cleanup (owner: "extract and correct anything valuable… clean repo")
+
+- **Reviewed every remote branch against `main` @ `db18229`.** Eleven branches have zero commits outside `main`, so there was nothing to extract: `build/atlas-presence-reconcile-20261029`, `build/browser-a11y-20261028`, `build/offline-lifecycle-20261029`, `build/pages-release-harness-20261028`, `build/patrol-release-proof-20261031`, `build/png-integrity-20261029`, `build/pwa-foundation-20261028`, `feat/approved-cel-shaded-20261031`, `feature/desktop-overlay-v1-20261031`, `feature/dexter-locomotion-v1-20261029` and the session branch.
+- **`uplift/presence-cadence-20261029` (`5478a36`)** was reviewed file by file:
+  - **Already on `main` through PR #6 (same behavior):** `lightBand`; the rule that hidden means sleeping; `safePosition` with drag and keyboard bounds; `remarks.mjs`; the audio throttle; hidden-state cleanup in `app.js`; the time-of-day scene gradients and the sleeping/huffing/wandering mood rules; `remarks` in the build, dev-server and offline-cache lists.
+  - **Extracted:** three test cases `main` lacked (ignoring unknown audio cues and invalid clocks; the remarks window expiry, streak break and `reset()`; unrecognized signals and malformed clocks). They pass unchanged against `main`'s code. Web unit tests: 69/69.
+  - **Discarded, with reasons:**
+    - Its `sw.js` and `tests/sw-contract.test.mjs` force `skipWaiting` over open sessions and hard-code v2/v3 caches. `main` deliberately does neither, and its six lifecycle tests are stricter.
+    - Its v0.2.2→0.3.0 version and file-count edits are stale.
+    - Its "unverified candidate" notes were superseded by the verified records above.
+    - Its cosmetic CSS (morning/day/evening hue tints, softened floor rings, eating glow, dimmer sleeping ring) was not applied, because it would change the live site's look without review and require an offline-cache bump. It remains recoverable from the archive tag.
+  - **Preserved:** tag `archive/uplift-presence-cadence-20261029` → `5478a36`, so deleting the branch loses nothing.
+- **After merge:** the excess branches are deleted, leaving `main` as the only branch.

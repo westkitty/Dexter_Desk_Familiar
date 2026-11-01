@@ -25,3 +25,12 @@ test("rapid repeated explicit huffs are throttled without sound stacking",()=>{
  assert.equal(starts,2);
  a.dispose();
 });
+// Ported from the archived uplift/presence-cadence-20261029 branch (5478a36).
+test("unexpected audio cues and invalid clocks are ignored",()=>{
+ let t=NaN,constructed=0;
+ const a=createAudio({enabled:()=>true,clock:()=>t,contextFactory:()=>{constructed++;return fakeContext(()=>{});}});
+ assert.equal(a.play("other"),false);
+ assert.equal(a.play("huff"),false);
+ assert.equal(constructed,0);
+ t=Infinity;assert.equal(a.play("huff"),false);
+});
