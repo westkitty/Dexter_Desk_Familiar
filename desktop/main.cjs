@@ -93,7 +93,7 @@ const semantic = semanticStates.createSemanticMachine({onChange: change => {
 // A mode overlays the user's settings at runtime; stored settings are never rewritten by it.
 function eff() { return modes.effectiveSettings(state.settings); }
 const ai = createOllamaClient({
-  getConfig: () => ({enabled: state.settings?.aiEnabled, endpoint: state.settings?.aiEndpoint, allowRemote: state.settings?.aiAllowRemote,
+  getConfig: () => ({enabled: state.settings?.aiEnabled, provider: state.settings?.aiProvider, endpoint: state.settings?.aiEndpoint, allowRemote: state.settings?.aiAllowRemote,
     model: state.settings?.aiModel, timeoutSeconds: state.settings?.aiTimeoutSeconds, contextMessages: state.settings?.aiContextMessages}),
   onEgress: ({kind, loopback}) => { state.egressCount++; if (!state.settings?.aiEnabled) state.egressWhileDisabled++; events.record('ai', 'request', {kind, loopback}); }
 });
@@ -408,7 +408,7 @@ function petMenu() {
     {type: 'separator'},
     {label: 'Settings…', click: () => openSettings()},
     {label: 'Inspector…', click: () => openInspector()},
-    ...(s.developerTools && state.devUnlocked ? [{label: 'Developer', submenu: devMenu()}] : []),
+    ...(state.devUnlocked ? [{label: 'Developer', submenu: devMenu()}] : []),
     {label: 'Reset position', click: resetPosition},
     {label: alive(state.win) && state.win.isVisible() ? 'Hide Dexter' : 'Show Dexter', click: () => (alive(state.win) && state.win.isVisible() ? hidePet() : restore())},
     {label: 'Quit Dexter', click: () => app.quit()}
@@ -1101,16 +1101,20 @@ function setupIpc() {
     if (!fromPet(event) || !answer || typeof answer.id !== 'string' || !Array.isArray(answer.path)) return;
     answerCheckin(answer.id, answer.path.slice(0, 5));
   });
-  // Five quick nose pokes unlock developer mode when enabled in settings.
+  // Five quick nose pokes unlock developer mode.
   ipcMain.on('dexter:dev', event => {
-    if (fromPet(event) && state.settings.developerTools && state.devUnlocked) {
+    if (fromPet(event) && state.devUnlocked) {
       devMenu().popup({window: state.win});
     }
   });
   ipcMain.on('dexter:dev-unlock', event => {
-    if (fromPet(event) && state.settings.developerTools) {
+    if (fromPet(event)) {
+      state.settings.developerTools = true;
       state.devUnlocked = true;
+      scheduleSave();
       refreshMenus();
+      sendPet('dexter:prefs', {developerTools: true});
+      sendUi('settings:changed', publicSettings());
       devMenu().popup({window: state.win});
     }
   });
@@ -1118,6 +1122,7 @@ function setupIpc() {
     if (fromPet(event)) {
       state.devUnlocked = false;
       refreshMenus();
+      sendUi('settings:changed', publicSettings());
     }
   });
   ipcMain.on('dexter:bubble-dismissed', event => {
@@ -1197,16 +1202,18 @@ function setupIpc() {
   handle('kokoro:check', 'settings', () => kokoro.getReport());
   handle('dexdictate:check', 'settings', () => dexdictate.checkDexDictate());
   handle('dev:unlock', 'any', () => {
-    if (state.settings.developerTools) {
-      state.devUnlocked = true;
-      refreshMenus();
-      return {unlocked: true};
-    }
-    return {unlocked: false};
+    state.settings.developerTools = true;
+    state.devUnlocked = true;
+    scheduleSave();
+    refreshMenus();
+    sendPet('dexter:prefs', {developerTools: true});
+    sendUi('settings:changed', publicSettings());
+    return {unlocked: true};
   });
   handle('dev:lock', 'any', () => {
     state.devUnlocked = false;
     refreshMenus();
+    sendUi('settings:changed', publicSettings());
     return {unlocked: false};
   });
   handle('bubble:answer', 'bubble', payload => {

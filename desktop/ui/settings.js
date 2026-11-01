@@ -94,6 +94,51 @@
       saved('Done.');
     });
   }
+
+  // ---- Settings Search Filter
+  const searchInput = $('settingsSearch');
+  const searchCount = $('settingsSearchCount');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.trim().toLowerCase();
+      const sections = document.querySelectorAll('.settings-main section');
+      let totalMatches = 0;
+      if (!q) {
+        for (const sec of sections) {
+          sec.classList.remove('settings-section-hidden');
+          for (const row of sec.querySelectorAll('.row, .card, .actions, p:not(.saved)')) {
+            row.classList.remove('settings-row-hidden');
+          }
+        }
+        if (searchCount) { searchCount.hidden = true; searchCount.textContent = ''; }
+        return;
+      }
+      for (const sec of sections) {
+        const title = (sec.querySelector('h2')?.textContent || '').toLowerCase();
+        const secMatch = title.includes(q);
+        const rows = sec.querySelectorAll('.row, .card');
+        let secVisibleCount = 0;
+        for (const row of rows) {
+          const text = (row.textContent || '').toLowerCase();
+          const match = secMatch || text.includes(q);
+          row.classList.toggle('settings-row-hidden', !match);
+          if (match) { secVisibleCount++; totalMatches++; }
+        }
+        sec.classList.toggle('settings-section-hidden', secVisibleCount === 0 && !secMatch);
+      }
+      if (searchCount) {
+        searchCount.hidden = false;
+        searchCount.textContent = totalMatches === 1 ? '1 setting found' : totalMatches + ' settings found';
+      }
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        searchInput.dispatchEvent(new Event('input'));
+        searchInput.blur();
+      }
+    });
+  }
   $('aiTest').addEventListener('click', async () => {
     $('aiResult').textContent = 'Testing…'; delete $('aiResult').dataset.sticky;
     const r = await ui.invoke('ai:test');

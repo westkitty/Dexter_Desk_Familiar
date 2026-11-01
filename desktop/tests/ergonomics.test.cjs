@@ -22,9 +22,9 @@ test('ergonomics: headroom bleed permits Dexter visible art to touch screen top'
   assert.ok(bleed.y < 25, `Expected bleed.y < 25, got ${bleed.y}`);
   assert.equal(bleed.y, workArea.y - headroom);
 
-  // Visible art top boundary
+  // Visible art top boundary allows reaching menu bar
   const artBounds = ws.visibleArtBounds({...bleed, ...windowSize});
-  assert.ok(artBounds.y >= workArea.y - 1, `Visible art top (${artBounds.y}) should align with workArea.y (${workArea.y})`);
+  assert.ok(artBounds.y <= workArea.y, `Visible art top (${artBounds.y}) should reach up to workArea.y (${workArea.y})`);
 });
 
 test('ergonomics: nose-only hit test distinguishes nose from body and ears across art modes', () => {

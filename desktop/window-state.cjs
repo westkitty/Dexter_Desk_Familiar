@@ -271,8 +271,9 @@ function petWindowSize(scale) {
 }
 function headroomHeight(windowSize) {
   if (!windowSize || !windowSize.width || !windowSize.height) return 0;
-  const artHeight = Math.min(windowSize.width * 0.92, windowSize.height * 0.92);
-  return Math.max(0, Math.round(windowSize.height - artHeight));
+  const artTopFromWindowBottom = windowSize.width * 0.92 * 0.92;
+  const headYInWindow = windowSize.height - artTopFromWindowBottom;
+  return Math.max(0, Math.round(headYInWindow + 38));
 }
 function visibleArtBounds(windowBounds) {
   if (!windowBounds) return null;
@@ -315,7 +316,7 @@ function recoverBounds(bounds, workAreas) {
   };
   const target = areas.slice().sort((a, b) => distance(a) - distance(b))[0];
   const size = {width: Math.min(bounds.width, target.width), height: Math.min(bounds.height, target.height)};
-  return {...clampPosition(bounds, target, size), ...size};
+  return {...clampPosition(bounds, target, size, {allowHeadroomBleed: true}), ...size};
 }
 // Place a companion panel beside Dexter without covering him.
 function panelBeside(pet, panel, area, gap = 8) {

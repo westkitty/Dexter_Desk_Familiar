@@ -306,10 +306,6 @@ if (native) {
     noseClicks = [];
   }
   function handlePetClick(clientX, clientY) {
-    if (!prefs.developerTools) {
-      resetNoseClicks();
-      return;
-    }
     const media = visibleMedia();
     if (!media) {
       resetNoseClicks();

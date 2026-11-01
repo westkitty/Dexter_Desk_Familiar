@@ -7,10 +7,10 @@
   // Normalized nose regions (uMin, uMax, vMin, vMax in [0, 1]) for each art mode.
   // When options.flipped is true, the horizontal coordinate is mirrored (1 - u).
   const NOSE_REGIONS = Object.freeze({
-    pixel: {uMin: 0.25, uMax: 0.36, vMin: 0.31, vMax: 0.41},
-    cel: {uMin: 0.31, uMax: 0.41, vMin: 0.31, vMax: 0.41},
-    atlas: {uMin: 0.27, uMax: 0.39, vMin: 0.31, vMax: 0.43},
-    default: {uMin: 0.26, uMax: 0.40, vMin: 0.31, vMax: 0.42}
+    pixel: {uMin: 0.20, uMax: 0.38, vMin: 0.30, vMax: 0.48},
+    cel: {uMin: 0.22, uMax: 0.42, vMin: 0.30, vMax: 0.48},
+    atlas: {uMin: 0.22, uMax: 0.42, vMin: 0.30, vMax: 0.48},
+    default: {uMin: 0.20, uMax: 0.42, vMin: 0.30, vMax: 0.48}
   });
 
   function containedRect(sourceWidth, sourceHeight, width = MASK_SIZE, height = MASK_SIZE) {

@@ -293,3 +293,13 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
   - Live DexDictate Accessibility typing into focused Conversation textarea.
   - Multi-display physical recovery and macOS trackpad drag gesture.
 
+## 2026-11-01 — MacBook physical UX refinements & ergonomics repair
+
+- **Authority:** User review feedback with physical MacBook testing and screenshot evidence (`media_1793564174823_1801c2f1.png`, `media_1793564585398_efed839d.png`).
+- **Issues addressed:**
+  1. **Nose click unlock:** Cel and pixel nose regions were widened (`hit-test.js`) to match actual sprite coordinates ($u \in [0.20, 0.42]$, $v \in [0.30, 0.48]$). Removed `if (!prefs.developerTools)` check in `renderer.js` so five rapid nose clicks reliably trigger developer unlock as an authentic gesture without requiring pre-activation in Settings.
+  2. **Top menu bar placement:** Adjusted `headroomHeight` and `clampPosition` in `window-state.cjs` allowing Dexter's visible head/ears to reach $y = 0$ at the top menu bar bezel.
+  3. **Settings search:** Added instant search filter bar in `ui/settings.html`, `ui/panel.css`, and `ui/settings.js` filtering across categories, rows, and cards.
+  4. **AI provider routing:** Fixed `getConfig` in `main.cjs` to pass `provider: state.settings?.aiProvider`, preventing OpenAI-compatible tunnel endpoints (`127.0.0.1:11435/v1`) from erroneously hitting Ollama `/api/tags` 404.
+- **Verification:** 69/69 web tests, 89/89 desktop tests PASS. Re-packaged into `/Applications/Dexter Desk Familiar.app`, ad-hoc signed and verified.
+
