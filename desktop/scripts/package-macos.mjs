@@ -27,6 +27,7 @@ execFileSync(packager, [
   path.join(root, '.stage', 'app'), 'Dexter Desk Familiar', '--platform=darwin', '--arch=arm64', '--out=' + out, '--overwrite',
   '--app-bundle-id=dev.stinkyweasel.dexterdesk', '--app-version=' + bundleVersion, '--build-version=' + bundleVersion,
   '--app-category-type=public.app-category.entertainment', '--app-copyright=Dexter Desk Familiar contributors',
+  '--extend-info=' + path.join(root, 'build', 'Info.extend.plist'),
   '--prune=true', '--asar', '--icon=' + icon
 ], {cwd: root, stdio: 'inherit'});
 const app = path.join(out, 'Dexter Desk Familiar-darwin-arm64', 'Dexter Desk Familiar.app');

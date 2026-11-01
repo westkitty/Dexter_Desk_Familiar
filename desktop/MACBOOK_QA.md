@@ -1,4 +1,4 @@
-# Dexter Desktop 0.2.0-alpha.1 — physical MacBook acceptance
+# Dexter Desktop 0.3.0-alpha.1 — physical MacBook acceptance
 
 CI drives the real app with synthetic in-app events. **It cannot prove physical mouse click-through, real focus behavior, multi-monitor hardware, VoiceOver, Gatekeeper first launch, or long-session energy use.** Only these checks can. Record each result with the DMG's SHA-256, the macOS version and the Mac model.
 
@@ -6,7 +6,7 @@ Do not reuse the older `…unsigned_alpha.dmg`; its signature was broken. Every 
 
 ## A. Install (Gatekeeper path)
 
-- [ ] `shasum -a 256 -c Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg.sha256` prints `OK`.
+- [ ] `shasum -a 256 -c Dexter_Desk_Familiar_0.3.0-alpha.1_macOS_arm64_adhoc.dmg.sha256` prints `OK`.
 - [ ] The DMG window shows exactly **Dexter Desk Familiar** and an **Applications** shortcut. Drag the app across, then eject.
 - [ ] First open: note the exact Gatekeeper message. Approve through **System Settings → Privacy & Security → Open Anyway** only. Do not disable Gatekeeper and do not use `xattr -dr`.
 - [ ] If macOS says **damaged**, stop and record `codesign --verify --deep --strict -v "/Applications/Dexter Desk Familiar.app"`.
@@ -39,6 +39,17 @@ Do not reuse the older `…unsigned_alpha.dmg`; its signature was broken. Every 
 - [ ] Optional, if you run Ollama locally: enable Local AI (a confirmation appears), **Test connection**, then ask a question. Tokens stream in. **Stop** cancels. Stopping Ollama shows "AI offline" and local replies keep working.
 - [ ] Settings → Sound & speech: enable speech, **Test voice**, adjust volume and rate, **Stop speaking**. Disabling speech stops it immediately.
 - [ ] Check-ins: Settings → Check-ins → **Show one now**. Answer with a mouse click on a choice.
+
+## D2. Round-2 features (0.3.0)
+
+- [ ] Settings → Conversation → shortcut ⌘⇧K: pressing it in any app opens the conversation panel, and pressing it again closes it. Setting it to None stops it.
+- [ ] Speech input: enable it, set whisper.cpp paths, press the microphone button. macOS asks for microphone permission once. Speak, click again, and the transcript appears in the box without being sent. While the option is off, Dexter never appears under Privacy & Security → Microphone as recently used.
+- [ ] Settings → System → every Space and full screen: Dexter appears on other desktops and over a full-screen app. Turn it off and he stays on one desktop.
+- [ ] Notifications: enable them, hide Dexter, and ask something in the panel with a model, or wait for a check-in. A macOS notification appears; clicking it brings Dexter back.
+- [ ] Separate bubble window: drag it, quit and relaunch; it keeps its place and never steals typing focus.
+- [ ] Work mode suppresses check-ins; Crisis mode makes them frequent; switching back to Plain restores your own settings.
+- [ ] A 25-minute session gives a halfway remark and an end remark (with notifications if Dexter is hidden).
+- [ ] Inspector shows sensible live data; with Reduce Motion on, typewriter text and tricks are skipped.
 
 ## E. Accessibility
 

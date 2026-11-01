@@ -35,8 +35,12 @@
     if (s.status === 'offline' || s.status === 'error') showNotice(s.detail || 'The model is unavailable. Local replies still work.');
     else if (s.status !== 'streaming') showNotice('');
   }
+  function setCompact(on) { document.body.classList.toggle('compact', on); $('compact').setAttribute('aria-pressed', String(on)); }
   function reset(snapshot) {
     log.replaceChildren(); nodes.clear(); setBusy(null);
+    setCompact(snapshot.compact === true);
+    $('mic').hidden = !snapshot.stt;
+    $('retry').hidden = !snapshot.canRetry;
     for (const m of snapshot.messages) render(m);
     setStatus(snapshot);
     $('memory').textContent = snapshot.remembering ? 'Remembered on this computer.' : 'Not remembered after quitting.';
@@ -56,9 +60,58 @@
       setBusy(null);
       if (event.detail && event.status !== 'complete') showNotice(event.detail);
     } else if (event.type === 'reset') reset(event.snapshot);
+    else if (event.type === 'route') $('route').textContent = event.path === 'local_ai' ? '' : 'Handled ' + (event.path === 'command' ? 'locally' : 'without a model') + ': ' + event.reason + '.';
+    else if (event.type === 'compact') setCompact(event.compact);
+    if (event.type === 'done') $('retry').hidden = !(event.status === 'error' || event.status === 'cancelled');
   });
   ui.on('chat:status', setStatus);
-  ui.on('settings:changed', s => { $('memory').textContent = s.settings.rememberConversation ? 'Remembered on this computer.' : 'Not remembered after quitting.'; });
+  ui.on('settings:changed', s => {
+    $('memory').textContent = s.settings.rememberConversation ? 'Remembered on this computer.' : 'Not remembered after quitting.';
+    $('mic').hidden = !s.settings.sttEnabled; setCompact(s.settings.chatCompact);
+  });
+  $('compact').addEventListener('click', () => ui.invoke('chat:compact', !document.body.classList.contains('compact')).then(setCompact));
+  $('snap').addEventListener('click', () => ui.invoke('chat:snap'));
+  $('packet').addEventListener('click', async () => { const r = await ui.invoke('chat:packet'); showNotice(r.saved ? '' : 'Packet not saved.'); });
+  $('retry').addEventListener('click', () => { $('retry').hidden = true; ui.invoke('chat:retry'); });
+
+  // Push-to-talk (optional): records only between two clicks, at most 30 s, and only after
+  // the user enabled speech input. The transcript is placed in the box for review, never sent.
+  let recorder = null, chunks = [], stream = null, stopTimer = null;
+  async function startRecording() {
+    const ready = await ui.invoke('stt:prepare');
+    if (!ready.ok) { showNotice(ready.detail); return; }
+    try { stream = await navigator.mediaDevices.getUserMedia({audio: true, video: false}); }
+    catch (error) { showNotice('Microphone unavailable: ' + error.message); return; }
+    chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = finishRecording;
+    recorder.start();
+    $('mic').setAttribute('aria-pressed', 'true'); showNotice('Listening. Click the microphone again to stop.');
+    stopTimer = setTimeout(stopRecording, 30000);
+  }
+  function stopRecording() {
+    clearTimeout(stopTimer);
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    stream?.getTracks().forEach(t => t.stop()); stream = null;
+    $('mic').setAttribute('aria-pressed', 'false');
+  }
+  async function finishRecording() {
+    recorder = null;
+    try {
+      showNotice('Transcribing locally…');
+      const blob = new Blob(chunks, {type: chunks[0]?.type || 'audio/webm'}); chunks = [];
+      const context = new AudioContext();
+      const audio = await context.decodeAudioData(await blob.arrayBuffer());
+      void context.close();
+      const bytes = window.DexterWav.encodeWav(window.DexterWav.downsample(audio.getChannelData(0), audio.sampleRate));
+      const r = await ui.invoke('stt:transcribe', bytes);
+      if (r.ok) { input.value = (input.value ? input.value + ' ' : '') + r.text; showNotice(''); input.focus(); }
+      else showNotice('Transcription failed: ' + r.detail);
+    } catch (error) { showNotice('Could not process the recording: ' + error.message); }
+  }
+  $('mic').addEventListener('click', () => { if (recorder) stopRecording(); else void startRecording(); });
+  window.addEventListener('pagehide', stopRecording);
 
   async function submit() {
     const text = input.value.trim();

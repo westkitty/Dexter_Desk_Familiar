@@ -12,14 +12,22 @@
     <header class="chat-head">
       <div><small>DEXTER · CONVERSATION</small><h1 id="chatTitle">State your business.</h1></div>
       <span id="aiStatus" class="status-pill" role="status">Local replies</span>
+      <span class="chat-tools">
+        <button type="button" id="compact" class="icon-button" aria-pressed="false" aria-label="Compact view" title="Compact view">▭</button>
+        <button type="button" id="snap" class="icon-button" aria-label="Snap beside Dexter" title="Snap beside Dexter">⇲</button>
+        <button type="button" id="packet" class="icon-button" aria-label="Export context packet" title="Export context packet">⇩</button>
+      </span>
       <button type="button" id="closeChat" class="icon-button" aria-label="Close conversation (Escape)" title="Close (Esc)">×</button>
     </header>
     <ol id="log" class="chat-log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation history"></ol>
+    <p id="route" class="chat-route" aria-live="off"></p>
     <p id="notice" class="chat-notice" role="alert" hidden></p>
     <form id="composer" class="composer">
       <label for="input" class="visually-hidden">Message to Dexter</label>
       <textarea id="input" rows="2" maxlength="4000" placeholder="Say something. Or /help." autocomplete="off" spellcheck="false"></textarea>
       <div class="composer-actions">
+        <button type="button" id="mic" class="mic" aria-pressed="false" hidden aria-label="Record a message (speech input)" title="Record (click to start, click to stop)">🎙</button>
+        <button type="button" id="retry" hidden>Retry</button>
         <button type="button" id="stop" hidden>Stop</button>
         <button type="submit" id="send" class="primary">Send</button>
       </div>
@@ -30,6 +38,7 @@
       <button type="button" id="aiSettings" class="link">AI settings</button>
     </footer>
   </main>
+  <script src="../audio-wav.js"></script>
   <script src="./chat.js"></script>
 </body>
 </html>

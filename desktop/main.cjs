@@ -3,7 +3,7 @@
 // One small transparent window for Dexter, plus two on-demand panels
 // (conversation, settings). No global input capture, no screen inspection,
 // no network unless the user enables Local AI. See desktop/ARCHITECTURE.md.
-const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, powerMonitor} = require('electron');
+const {app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, dialog, session, protocol, powerMonitor, globalShortcut, Notification, systemPreferences} = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -16,6 +16,17 @@ const {createConversation} = require('./core/conversation.cjs');
 const {createEventLog} = require('./core/events.cjs');
 const diagnostics = require('./core/diagnostics.cjs');
 const {createPiper, checkPiper} = require('./core/tts-piper.cjs');
+const modes = require('./core/modes.cjs');
+const semanticStates = require('./core/states.cjs');
+const router = require('./core/router.cjs');
+const checkins = require('./core/checkins.cjs');
+const sessions = require('./core/session.cjs');
+const {createJournal} = require('./core/journal.cjs');
+const {createNotes} = require('./core/memory.cjs');
+const packets = require('./core/packet.cjs');
+const scripts = require('./core/scripts.cjs');
+const {createWhisper, checkWhisper} = require('./core/stt-whisper.cjs');
+const {createTtsCache, listVoices} = require('./core/tts-cache.cjs');
 
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
@@ -51,12 +62,31 @@ const state = {
   quitting: false, familiarState: 'idle', napping: false, bubbleOpen: false,
   aiStatus: 'off', aiDetail: '', ttsStatus: 'off', egressCount: 0, egressWhileDisabled: 0,
   checkinTimer: null, lastCheckinAt: null, lastCheckinId: null, activeCheckin: null,
-  displayTimer: null, crashTimes: [], startedAt: Date.now()
+  displayTimer: null, crashTimes: [], startedAt: Date.now(),
+  inspectorWin: null, bubbleWin: null, sessionTimer: null, sessionMilestone: null, gagTimer: null,
+  lastUserText: '', hotkeyStatus: 'off', sttStatus: 'off', chatBoundsTimer: null
 };
 const events = createEventLog({limit: 200});
 const budget = attention.createBudget();
 const piper = createPiper();
 let conversation = createConversation();
+let journal = null, notes = null, ttsCache = null;
+const picker = checkins.createPicker();
+const workSession = sessions.createSession();
+const whisper = createWhisper();
+const demo = scripts.createPlayer({onStep: step => {
+  if (step.gag) sendPet('dexter:gag', step.gag);
+  showBubble({kind: 'say', text: step.say, timeoutMs: step.ms});
+  signal(step.state, 70, step.ms, '');
+}});
+// Semantic WestCat states drive Dexter's visual states through the priority bus.
+const semantic = semanticStates.createSemanticMachine({onChange: change => {
+  events.record('state', 'semantic-' + change.to, {from: change.from, reason: String(change.reason || '').slice(0, 40)});
+  signal(change.visual, 62, (semanticStates.SEMANTIC[change.to].autoReturn?.ms) || 2500, '');
+  sendUi('inspector:changed', {});
+}});
+// A mode overlays the user's settings at runtime; stored settings are never rewritten by it.
+function eff() { return modes.effectiveSettings(state.settings); }
 const ai = createOllamaClient({
   getConfig: () => ({enabled: state.settings?.aiEnabled, endpoint: state.settings?.aiEndpoint, allowRemote: state.settings?.aiAllowRemote,
     model: state.settings?.aiModel, timeoutSeconds: state.settings?.aiTimeoutSeconds, contextMessages: state.settings?.aiContextMessages}),
@@ -92,6 +122,12 @@ function load() {
   state.historyPath = path.join(app.getPath('userData'), HISTORY_NAME);
   try { state.settings = ws.sanitizeSettings(JSON.parse(fs.readFileSync(state.settingsPath, 'utf8'))); }
   catch { state.settings = ws.sanitizeSettings(null); }
+  const data = app.getPath('userData');
+  journal = createJournal({file: path.join(data, 'journal.jsonl'), enabled: () => Boolean(state.settings?.keepJournal)});
+  notes = createNotes({file: path.join(data, 'notes.json')});
+  notes.load();
+  ttsCache = createTtsCache({dir: path.join(data, 'tts-cache')});
+  if (!state.settings?.keepJournal) journal?.clear();
   conversation = createConversation({file: state.historyPath, persist: state.settings.rememberConversation});
   conversation.load();
   // Remembering was turned off while the app was not running: never leave a file behind.
@@ -102,7 +138,7 @@ function load() {
 const alive = w => Boolean(w && !w.isDestroyed());
 function sendPet(channel, payload) { if (alive(state.win)) state.win.webContents.send(channel, payload); }
 function sendUi(channel, payload) {
-  for (const w of [state.chatWin, state.settingsWin]) if (alive(w)) w.webContents.send(channel, payload);
+  for (const w of [state.chatWin, state.settingsWin, state.inspectorWin, state.bubbleWin]) if (alive(w)) w.webContents.send(channel, payload);
 }
 function emit(action) { sendPet('dexter:action', action); }
 function signal(stateName, priority, ms, line) { sendPet('dexter:signal', {state: stateName, priority, ms, line: line || ''}); }
@@ -187,6 +223,7 @@ function restore() {
   state.win.showInactive();
   setIgnore(); refreshMenus();
   state.tray?.setToolTip('Dexter Desk Familiar');
+  sendPet('dexter:gag', 'drop');
   events.record('window', 'restore', {});
 }
 function resetPosition() {
@@ -197,7 +234,9 @@ function resetPosition() {
 // ---------------------------------------------------------------- preferences → windows
 function applyWindow() {
   if (!alive(state.win)) return;
-  state.win.setAlwaysOnTop(state.settings.alwaysOnTop, 'floating');
+  const level = state.settings.allSpaces ? 'screen-saver' : 'floating';
+  state.win.setAlwaysOnTop(state.settings.alwaysOnTop, level);
+  try { state.win.setVisibleOnAllWorkspaces(state.settings.allSpaces, {visibleOnFullScreen: state.settings.allSpaces, skipTransformProcessType: true}); } catch {}
   state.win.setOpacity(state.settings.opacity);
   try { state.win.setFocusable(!state.settings.passiveFocus); } catch {}
   if (alive(state.chatWin)) state.chatWin.setAlwaysOnTop(state.settings.alwaysOnTop, 'floating');
@@ -216,10 +255,11 @@ function applyLoginItem() {
   catch (error) { events.record('error', 'login-item', {message: error.message}); }
 }
 function petPrefs() {
-  const s = state.settings;
+  const s = eff();
   return {quiet: s.quiet, motion: s.motion, sound: s.sound, idleSeconds: s.idleSeconds, intensity: s.intensity,
     flipped: s.flipped, art: s.art, bubbleTextSize: s.bubbleTextSize, highContrastBubble: s.highContrastBubble,
-    preciseHitTest: s.preciseHitTest,
+    preciseHitTest: s.preciseHitTest, typewriter: s.typewriter, typewriterCps: s.typewriterCps, gags: s.gags,
+    animationSpeed: s.animationSpeed, developerTools: s.developerTools, mode: s.mode,
     tts: {enabled: s.ttsEnabled, engine: s.ttsEngine, volume: s.ttsVolume, rate: s.ttsRate, voice: s.ttsVoice}};
 }
 function sendPrefs() { sendPet('dexter:prefs', petPrefs()); }
@@ -238,7 +278,15 @@ function applySettings(previous, next) {
     setAiStatus(next.aiEnabled ? 'idle' : 'off', next.aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
   }
   if (changed('ttsEnabled') && !next.ttsEnabled) { sendPet('dexter:speech', {op: 'cancel'}); piper.cancel(); }
-  if (['checkinsEnabled', 'checkinMinutes'].some(changed)) armCheckins();
+  if (['checkinsEnabled', 'checkinMinutes', 'mode', 'sessionCheckinMinutes'].some(changed)) armCheckins();
+  if (['allSpaces'].some(changed)) applyWindow();
+  if (changed('globalHotkey')) applyHotkey();
+  if (changed('bubbleMode') && next.bubbleMode !== 'window' && alive(state.bubbleWin)) state.bubbleWin.close();
+  if (changed('sttEnabled') && !next.sttEnabled) { whisper.cancel(); state.sttStatus = 'off'; }
+  if (changed('ttsCache') && !next.ttsCache) ttsCache?.clear();
+  if (changed('keepJournal') && !next.keepJournal) journal?.clear();
+  if (changed('mode')) { events.record('settings', 'mode', {mode: next.mode}); armGags(); }
+  if (changed('gags')) armGags();
   sendPrefs();
   scheduleSave();
   refreshMenus();
@@ -267,13 +315,48 @@ function publicSettings() {
   delete s.size;
   return {settings: s, platform: process.platform, canLaunchAtLogin: PLATFORM_MAC || process.platform === 'win32',
     defaults: ws.DEFAULTS, aiStatus: state.aiStatus, aiDetail: state.aiDetail, ttsStatus: state.ttsStatus,
-    passThrough: state.passThrough, visible: alive(state.win) && state.win.isVisible()};
+    passThrough: state.passThrough, visible: alive(state.win) && state.win.isVisible(),
+    hotkeyStatus: state.hotkeyStatus, sttStatus: state.sttStatus, modes: Object.fromEntries(Object.entries(modes.MODES).map(([k, v]) => [k, {label: v.label, tagline: v.tagline}])),
+    notes: notes ? notes.list() : [], notesCrossings: notes ? notes.crossings : 0, journalEntries: journal && state.settings.keepJournal ? journal.read().length : 0,
+    ttsCacheStats: ttsCache ? ttsCache.stats() : {files: 0, bytes: 0}, session: workSession.snapshot()};
 }
 
 // ---------------------------------------------------------------- menus
 function setArt(art) { updateSettings({art}); }
 function scaleMenu() {
   return [80, 100, 130, 160].map(scale => ({label: scale + '%', type: 'radio', checked: state.settings.scale === scale, click: () => updateSettings({scale})}));
+}
+function modeMenu() {
+  return Object.entries(modes.MODES).map(([id, m]) => ({label: m.label + ' — ' + m.tagline, type: 'radio', checked: state.settings.mode === id,
+    click: () => { updateSettings({mode: id}); showBubble({kind: 'say', text: m.label + ' mode. ' + m.tagline, timeoutMs: 3500}); }}));
+}
+function sessionMenu() {
+  const snap = workSession.snapshot();
+  if (!snap.active) return ws.SESSION_MINUTES.map(min => ({label: 'Start ' + min + '-minute session', click: () => startSession(min)}));
+  return [
+    {label: (snap.paused ? 'Paused · ' : '') + sessions.formatRemaining(snap.remainingMs) + ' left', enabled: false},
+    snap.paused ? {label: 'Resume session', click: resumeSession} : {label: 'Pause session', click: pauseSession},
+    {label: 'End session', click: stopSession}
+  ];
+}
+function tricksMenu() {
+  return [
+    {label: 'Sneeze', click: () => gag('sneeze')}, {label: 'Hop', click: () => gag('hop')},
+    {label: 'Shake', click: () => gag('shake')}, {label: 'Drop in', click: () => gag('drop')},
+    {type: 'separator'},
+    demo.playing ? {label: 'Stop demonstration', click: () => demo.stop()} : {label: 'Play demonstration', click: () => demo.play()}
+  ];
+}
+function devMenu() {
+  return Menu.buildFromTemplate([
+    {label: 'Developer tools', enabled: false},
+    {label: 'Force semantic state', submenu: Object.keys(semanticStates.SEMANTIC).map(id => ({label: id, click: () => semantic.enter(id, 'developer', {force: true})}))},
+    {label: 'Show a check-in now', click: () => runCheckin({force: true})},
+    {label: 'Event reaction', submenu: Object.keys(persona.EVENTS).map(k => ({label: k, click: () => proactiveEvent(k, {force: true})}))},
+    {label: 'Trick', submenu: tricksMenu()},
+    {label: 'Typewriter speed', submenu: [20, 45, 80, 120].map(cps => ({label: cps + ' chars/s', type: 'radio', checked: state.settings.typewriterCps === cps, click: () => updateSettings({typewriterCps: cps})}))},
+    {label: 'Inspector…', click: () => openInspector()}
+  ]);
 }
 function petMenu() {
   const s = state.settings;
@@ -282,6 +365,9 @@ function petMenu() {
     {label: 'Huff', click: () => emit('huff')},
     {label: state.napping ? 'Wake' : 'Nap', click: () => emit('nap')},
     {label: 'Talk to Dexter…', click: () => openChat()},
+    {label: 'Tricks', submenu: tricksMenu()},
+    {label: 'Mode', submenu: modeMenu()},
+    {label: 'Session', submenu: sessionMenu()},
     {type: 'separator'},
     {label: 'Appearance', submenu: [
       {label: 'Original pixel Dexter', type: 'radio', checked: s.art === 'pixel', click: () => setArt('pixel')},
@@ -297,6 +383,8 @@ function petMenu() {
     {label: 'Quiet mode', type: 'checkbox', checked: s.quiet, click: () => updateSettings({quiet: !state.settings.quiet})},
     {type: 'separator'},
     {label: 'Settings…', click: () => openSettings()},
+    {label: 'Inspector…', click: () => openInspector()},
+    ...(s.developerTools ? [{label: 'Developer', submenu: devMenu()}] : []),
     {label: 'Reset position', click: resetPosition},
     {label: alive(state.win) && state.win.isVisible() ? 'Hide Dexter' : 'Show Dexter', click: () => (alive(state.win) && state.win.isVisible() ? hidePet() : restore())},
     {label: 'Quit Dexter', click: () => app.quit()}
@@ -311,6 +399,9 @@ function trayMenu() {
     {type: 'separator'},
     {label: 'Talk to Dexter…', click: () => openChat()},
     {label: 'Settings…', click: () => openSettings()},
+    {label: 'Inspector…', click: () => openInspector()},
+    {label: 'Mode', submenu: modeMenu()},
+    {label: 'Session', submenu: sessionMenu()},
     {type: 'separator'},
     {label: 'Pass through all clicks', type: 'checkbox', checked: state.passThrough, click: () => setPassThrough(!state.passThrough)},
     {label: 'Quiet mode', type: 'checkbox', checked: state.settings.quiet, click: () => updateSettings({quiet: !state.settings.quiet})},
@@ -363,7 +454,16 @@ function recoverRenderer(details) {
   if (state.crashTimes.length <= 3) setTimeout(() => { if (alive(state.win)) state.win.reload(); }, 1000);
   else if (!SMOKE_TEST) dialog.showMessageBox({type: 'warning', message: 'Dexter\'s renderer keeps failing.', detail: 'Use the menu-bar icon to Quit, then reopen Dexter. Diagnostics are available in Settings.'}).catch(() => {});
 }
-function chatSize() { return {width: 340, height: 440}; }
+function chatSize() { const b = state.settings.chatBounds; return b ? {width: b.width, height: b.height} : {width: 340, height: 440}; }
+function rememberChatBounds(win) {
+  clearTimeout(state.chatBoundsTimer);
+  state.chatBoundsTimer = setTimeout(() => {
+    if (!alive(win)) return;
+    const b = win.getBounds();
+    state.settings.chatBounds = ws.sanitizeSettings({chatBounds: b}).chatBounds;
+    scheduleSave();
+  }, 300);
+}
 function createChatWindow() {
   const win = new BrowserWindow({
     ...chatSize(), show: false, frame: false, transparent: true, hasShadow: true, resizable: true,
@@ -374,6 +474,9 @@ function createChatWindow() {
   });
   lockNavigation(win, 'dexter://app/ui/chat.html');
   win.setAlwaysOnTop(state.settings.alwaysOnTop, 'floating');
+  // User-moved or resized panel geometry is remembered; "Snap to Dexter" clears it.
+  win.on('moved', () => rememberChatBounds(win));
+  win.on('resized', () => rememberChatBounds(win));
   // Closing destroys the renderer to return its memory; history lives in this process.
   win.on('closed', () => { if (state.chatWin === win) state.chatWin = null; events.record('window', 'chat-closed', {}); });
   win.webContents.on('render-process-gone', () => { events.record('error', 'chat-renderer-gone', {}); state.chatWin = null; try { win.destroy(); } catch {} });
@@ -386,10 +489,55 @@ function openChat() {
   const pet = alive(state.win) ? state.win.getBounds() : {x: 100, y: 100, width: 260, height: 369};
   const area = screen.getDisplayMatching(pet).workArea;
   const size = win.getBounds();
-  win.setBounds(ws.panelBeside(pet, {width: size.width, height: size.height}, area));
+  const saved = state.settings.chatBounds;
+  win.setBounds(saved ? ws.recoverBounds(saved, workAreas()) : ws.panelBeside(pet, {width: size.width, height: size.height}, area));
   sendPet('dexter:bubble', {kind: 'hide'});
+  if (semantic.current !== 'summoning') semantic.enter('summoning', 'conversation opened');
   const reveal = () => { win.show(); win.focus(); events.record('window', 'chat-shown', {}); };
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', reveal); else reveal();
+  return win;
+}
+function snapChat() {
+  state.settings.chatBounds = null; scheduleSave();
+  if (alive(state.chatWin)) {
+    const pet = state.win.getBounds();
+    state.chatWin.setBounds(ws.panelBeside(pet, {width: 340, height: 440}, screen.getDisplayMatching(pet).workArea));
+  }
+  return true;
+}
+// Inspector (adapted from Westcat_Familiar's Dexter Inspect / StackStatus panels):
+// on demand only, real data only, destroyed on close.
+function openInspector() {
+  if (!alive(state.inspectorWin)) {
+    const win = new BrowserWindow({width: 620, height: 640, minWidth: 460, minHeight: 400, show: false, title: 'Dexter Inspector',
+      backgroundColor: '#11191c', autoHideMenuBar: true, fullscreenable: false,
+      webPreferences: {...SECURE_PREFS, preload: path.join(ROOT, 'preload-ui.cjs')}});
+    lockNavigation(win, 'dexter://app/ui/inspector.html');
+    win.on('closed', () => { state.inspectorWin = null; });
+    win.loadURL('dexter://app/ui/inspector.html').catch(() => {});
+    win.once('ready-to-show', () => { win.show(); win.focus(); });
+    state.inspectorWin = win;
+  } else { state.inspectorWin.show(); state.inspectorWin.focus(); }
+  events.record('window', 'inspector-shown', {});
+  return state.inspectorWin;
+}
+// Detached speech bubble (adapted from WestCat_Overlay_MacOS's separate bubble
+// window): optional; draggable; position remembered; never takes focus.
+function ensureBubbleWindow() {
+  if (alive(state.bubbleWin)) return state.bubbleWin;
+  const pet = state.win.getBounds();
+  const size = {width: 300, height: 140};
+  const saved = state.settings.bubbleBounds;
+  const at = saved ? ws.recoverBounds({...saved, ...size}, workAreas()) : ws.panelBeside(pet, size, screen.getDisplayMatching(pet).workArea);
+  const win = new BrowserWindow({...size, x: at.x, y: at.y, show: false, frame: false, transparent: true, hasShadow: false, resizable: false,
+    focusable: false, skipTaskbar: true, minimizable: false, maximizable: false, fullscreenable: false, backgroundColor: '#00000000', title: 'Dexter says',
+    webPreferences: {...SECURE_PREFS, preload: path.join(ROOT, 'preload-ui.cjs')}});
+  lockNavigation(win, 'dexter://app/ui/bubble.html');
+  win.setAlwaysOnTop(state.settings.alwaysOnTop, 'floating');
+  win.on('moved', () => { const b = win.getBounds(); state.settings.bubbleBounds = {x: b.x, y: b.y}; scheduleSave(); });
+  win.on('closed', () => { if (state.bubbleWin === win) state.bubbleWin = null; });
+  win.loadURL('dexter://app/ui/bubble.html').catch(() => {});
+  state.bubbleWin = win;
   return win;
 }
 function openSettings(section) {
@@ -412,12 +560,47 @@ function openSettings(section) {
 
 // ---------------------------------------------------------------- bubbles, speech, proactive events
 function showBubble(payload) {
+  const detached = state.settings.bubbleMode === 'window' && (payload.kind === 'say' || payload.kind === 'reply');
+  if (detached) {
+    const win = ensureBubbleWindow();
+    const send = () => { win.webContents.send('bubble:show', payload); win.showInactive(); };
+    if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
+    return;
+  }
   state.bubbleOpen = payload.kind !== 'hide';
   sendPet('dexter:bubble', payload);
+}
+// Optional native notification for things Dexter could not show because he is hidden.
+function notify(title, body, onClick) {
+  if (!state.settings.nativeNotifications || !Notification.isSupported()) return false;
+  try {
+    const n = new Notification({title, body: String(body).slice(0, 200), silent: true});
+    if (onClick) n.on('click', onClick);
+    n.show();
+    events.record('app', 'notification', {});
+    return true;
+  } catch { return false; }
+}
+function gag(name) {
+  if (!['sneeze', 'hop', 'shake', 'drop'].includes(name)) return;
+  sendPet('dexter:gag', name);
+  events.record('interaction', 'gag-' + name, {});
+}
+// Rare ambient trick, budgeted like any other unprompted behavior.
+function armGags() {
+  clearTimeout(state.gagTimer); state.gagTimer = null;
+  if (!eff().gags) return;
+  state.gagTimer = setTimeout(() => {
+    state.gagTimer = null;
+    const decision = attention.evaluateProactive({kind: 'event', settings: eff(), state: petBusyState(), budget});
+    if (decision.allow) { budget.record(Date.now()); gag(Math.random() < 0.6 ? 'sneeze' : 'shake'); }
+    armGags();
+  }, (35 + Math.random() * 40) * 60000);
 }
 function speakOut(text, kind) {
   const s = state.settings;
   if (!s.ttsEnabled || !text) return;
+  if (kind === 'remark' && !eff().ttsSpeakRemarks) return;
   if (kind === 'reply' && !s.ttsSpeakReplies) return;
   if (kind === 'remark' && !s.ttsSpeakRemarks) return;
   sendPet('dexter:speech', {op: 'say', text, interrupt: kind === 'reply'});
@@ -429,7 +612,7 @@ function petBusyState() {
 function proactiveEvent(kind, {force = false} = {}) {
   const line = persona.eventLine(kind);
   if (!line) return false;
-  const decision = force ? {allow: true, reason: 'User-requested.'} : attention.evaluateProactive({kind: 'event', settings: state.settings, state: petBusyState(), budget});
+  const decision = force ? {allow: true, reason: 'User-requested.'} : attention.evaluateProactive({kind: 'event', settings: eff(), state: petBusyState(), budget});
   events.record('state', 'event-' + kind, {allowed: decision.allow, reason: decision.reason});
   if (!decision.allow) return false;
   if (!force) budget.record(Date.now());
@@ -437,37 +620,54 @@ function proactiveEvent(kind, {force = false} = {}) {
   speakOut(line.line, 'remark');
   return true;
 }
+// During an active, unpaused work session, check-ins follow the session cadence.
+function checkinSettings() {
+  const snap = workSession.snapshot();
+  const base = eff();
+  return snap.active && !snap.paused ? {...base, checkinsEnabled: true, checkinMinutes: state.settings.sessionCheckinMinutes} : base;
+}
 function armCheckins() {
   clearTimeout(state.checkinTimer); state.checkinTimer = null;
-  const delay = attention.nextCheckinDelay({settings: state.settings, lastAt: state.lastCheckinAt});
+  const s = checkinSettings();
+  const delay = workSession.snapshot().active && s.checkinsEnabled
+    ? Math.max(60000, s.checkinMinutes * 60000) : attention.nextCheckinDelay({settings: s, lastAt: state.lastCheckinAt});
   if (delay === null) return;
   state.checkinTimer = setTimeout(runCheckin, delay);
 }
 function runCheckin({force = false} = {}) {
   state.checkinTimer = null;
-  const decision = force ? {allow: true, reason: 'Requested from Settings.'} : attention.evaluateProactive({kind: 'checkin', settings: state.settings, state: petBusyState(), budget});
+  const decision = force ? {allow: true, reason: 'Requested from Settings.'} : attention.evaluateProactive({kind: 'checkin', settings: checkinSettings(), state: petBusyState(), budget});
   events.record('checkin', decision.allow ? 'shown' : 'deferred', {reason: decision.reason});
+  if (!decision.allow && decision.reason === 'Dexter is hidden.' && notify('Dexter has a question', 'Open Dexter to answer.', () => { restore(); runCheckin({force: true}); })) {
+    if (!force) budget.record(Date.now());
+    state.lastCheckinAt = Date.now(); armCheckins();
+    return {shown: false, reason: 'Sent as a notification while hidden.'};
+  }
   if (!decision.allow) {
     // Retry once later rather than polling; a fresh schedule follows either way.
-    if (state.settings.checkinsEnabled) state.checkinTimer = setTimeout(runCheckin, 10 * 60000);
+    if (checkinSettings().checkinsEnabled) state.checkinTimer = setTimeout(runCheckin, 10 * 60000);
     return {shown: false, reason: decision.reason};
   }
   if (!force) budget.record(Date.now());
-  const checkin = persona.chooseCheckin(state.lastCheckinId);
+  const checkin = picker.next(state.settings, state.lastCheckinId);
   state.activeCheckin = checkin; state.lastCheckinId = checkin.id; state.lastCheckinAt = Date.now();
   if (alive(state.win) && !state.win.isVisible() && force) restore();
-  showBubble({kind: 'checkin', ...persona.publicCheckin(checkin), timeoutMs: 60000});
+  semantic.enter('alert', 'check-in', {force: true});
+  showBubble({kind: 'checkin', ...checkins.publicView(checkin), timeoutMs: 60000});
   speakOut(checkin.text, 'remark');
   armCheckins();
   return {shown: true, reason: decision.reason};
 }
-function answerCheckin(id, index) {
+function answerCheckin(id, path) {
   const active = state.activeCheckin;
   if (!active || active.id !== id) return;
-  const choice = persona.checkinChoice(id, index);
+  const choice = checkins.resolve(active, path);
   if (!choice) return;
+  events.record('checkin', 'answered', {id, step: path.length});
+  journal?.append('checkin', {id, question: path.length > 1 ? 'follow-up' : active.text, answer: choice.label});
+  // Follow-up question (adapted from west_cat_overlay's follow_ups).
+  if (choice.followUp) { showBubble({kind: 'checkin', ...checkins.publicView(active, path), timeoutMs: 60000}); return; }
   state.activeCheckin = null;
-  events.record('checkin', 'answered', {id, index});
   showBubble({kind: 'say', text: choice.reply, timeoutMs: 4500});
   signal(choice.state, 70, 2600, '');
   speakOut(choice.reply, 'remark');
@@ -478,6 +678,56 @@ function answerCheckin(id, index) {
   }
 }
 
+// ---------------------------------------------------------------- work sessions
+function sessionSay(key) {
+  const line = sessions.LINES[key];
+  showBubble({kind: 'say', text: line, timeoutMs: 4000});
+  if (!(alive(state.win) && state.win.isVisible())) notify('Dexter', line, restore);
+  speakOut(line, 'remark');
+  journal?.append('session', {event: key, minutes: workSession.snapshot().minutes || 0});
+  events.record('state', 'session-' + key, {});
+  refreshMenus(); sendUi('inspector:changed', {});
+}
+function armSession() {
+  clearTimeout(state.sessionTimer); state.sessionTimer = null;
+  const snap = workSession.snapshot();
+  if (!snap.active || snap.paused) return;
+  const half = snap.minutes * 30000;
+  const target = state.sessionMilestone ? snap.minutes * 60000 : half;
+  state.sessionTimer = setTimeout(() => {
+    const m = workSession.milestone(state.sessionMilestone);
+    if (m) { state.sessionMilestone = m; sessionSay(m); semantic.enter(m === 'end' ? 'alert' : 'watching', 'session ' + m, {force: true}); }
+    if (m === 'end') { workSession.stop(); state.sessionMilestone = null; armCheckins(); return; }
+    armSession();
+  }, Math.max(1000, target - snap.elapsedMs + 50));
+}
+function startSession(minutes) {
+  const r = workSession.start(Number(minutes) || state.settings.sessionMinutes);
+  if (!r.ok) return r;
+  state.sessionMilestone = null; sessionSay('start'); armSession(); armCheckins();
+  return {ok: true, session: workSession.snapshot()};
+}
+function pauseSession() { const r = workSession.pause(); if (r.ok) { clearTimeout(state.sessionTimer); sessionSay('pause'); armCheckins(); } return r; }
+function resumeSession() { const r = workSession.resume(); if (r.ok) { sessionSay('resume'); armSession(); armCheckins(); } return r; }
+function stopSession() { const r = workSession.stop(); if (r.ok) { clearTimeout(state.sessionTimer); state.sessionMilestone = null; sessionSay('stop'); armCheckins(); } return r; }
+
+// ---------------------------------------------------------------- global hotkey (opt-in)
+// Registers one fixed key combination with macOS. It does not observe any other keys.
+function toggleChatFromHotkey() {
+  if (alive(state.chatWin) && state.chatWin.isVisible() && state.chatWin.isFocused()) { state.chatWin.close(); return; }
+  if (!(alive(state.win) && state.win.isVisible())) restore();
+  openChat();
+}
+function applyHotkey() {
+  globalShortcut.unregisterAll();
+  const key = state.settings.globalHotkey;
+  if (!key) { state.hotkeyStatus = 'off'; return; }
+  let ok = false;
+  try { ok = globalShortcut.register(key, toggleChatFromHotkey); } catch { ok = false; }
+  state.hotkeyStatus = ok ? 'registered: ' + key : 'unavailable (another app uses ' + key + ')';
+  events.record('app', ok ? 'hotkey-registered' : 'hotkey-failed', {});
+}
+
 // ---------------------------------------------------------------- conversation
 function setAiStatus(status, detail = '') {
   state.aiStatus = status; state.aiDetail = detail;
@@ -485,12 +735,14 @@ function setAiStatus(status, detail = '') {
 }
 function chatSnapshot() {
   return {messages: conversation.list(), status: state.aiStatus, detail: state.aiDetail, enabled: state.settings.aiEnabled,
-    remembering: state.settings.rememberConversation, commands: persona.COMMANDS};
+    remembering: state.settings.rememberConversation, commands: COMMANDS, compact: state.settings.chatCompact,
+    stt: state.settings.sttEnabled, canRetry: Boolean(state.lastUserText)};
 }
 function pushChat(event) { if (alive(state.chatWin)) state.chatWin.webContents.send('chat:event', event); }
 function deliverReply(text) {
   if (!text) return;
-  const decision = attention.evaluateProactive({kind: 'reply', settings: state.settings, state: petBusyState()});
+  const decision = attention.evaluateProactive({kind: 'reply', settings: eff(), state: petBusyState()});
+  if (!decision.allow && decision.reason === 'Dexter is hidden.') notify('Dexter replied', text, () => { restore(); openChat(); });
   if (decision.allow) {
     const short = text.length > 180 ? text.slice(0, 177).replace(/\s+\S*$/, '') + '…' : text;
     showBubble({kind: 'reply', text: short, more: text.length > 180, timeoutMs: 9000});
@@ -505,25 +757,104 @@ function localTurn(userText, reply, actions = []) {
   conversation.save();
   return m;
 }
-async function chatSend(raw) {
+const COMMANDS = Object.freeze({...persona.COMMANDS,
+  '/mode': 'Show or set the mode (plain, work, build, crisis, dex, quiet).',
+  '/session': 'start [25|50|90|120], pause, resume or stop a work session.',
+  '/time': 'Time left in the session.',
+  '/checkin': 'Ask me a check-in now.',
+  '/ask': 'Add a check-in: /ask Question | Answer | Answer',
+  '/remember': 'Save a note for later (yours, stored locally).',
+  '/notes': 'List saved notes.',
+  '/forget-notes': 'Delete all saved notes.',
+  '/packet': 'Export a context packet of this conversation.',
+  '/retry': 'Send your last message again.',
+  '/compact': 'Toggle the compact panel.',
+  '/sneeze': 'A trick.', '/hop': 'Another trick.', '/demo': 'A short demonstration.',
+  '/inspect': 'Open the inspector.'
+});
+function commandHelp() { return 'Commands, since you asked: ' + Object.entries(COMMANDS).map(([k, v]) => k + ' — ' + v).join(' '); }
+function statusLine() {
+  const snap = workSession.snapshot();
+  return 'State: ' + state.familiarState + ' (' + semantic.current + ')' + (state.napping ? ', napping' : '') + '. Mode: ' + modes.modeInfo(state.settings.mode).label +
+    '. Local AI: ' + state.aiStatus + '. Speech: ' + (state.settings.ttsEnabled ? state.settings.ttsEngine : 'off') +
+    '. Check-ins: ' + (checkinSettings().checkinsEnabled ? 'every ' + checkinSettings().checkinMinutes + ' min' : 'off') +
+    '. Session: ' + (snap.active ? sessions.formatRemaining(snap.remainingMs) + ' left' + (snap.paused ? ' (paused)' : '') : 'none') + '.';
+}
+async function runCommand(text, command, args) {
+  switch (command) {
+    case '/help': return localTurn(text, commandHelp());
+    case '/treat': return localTurn(text, 'Very well. One treat.', ['treat']);
+    case '/huff': return localTurn(text, 'Hff. Formally lodged.', ['huff']);
+    case '/nap': return localTurn(text, state.napping ? 'Awake. Reluctantly.' : 'I am not available for consultation.', ['nap']);
+    case '/quiet': updateSettings({quiet: !state.settings.quiet}); return localTurn(text, state.settings.quiet ? 'Silence. A reasonable policy.' : 'Complaints may resume.');
+    case '/status': return localTurn(text, statusLine());
+    case '/clear': conversation.clear(); pushChat({type: 'reset', snapshot: chatSnapshot()}); return null;
+    case '/mode': {
+      const wanted = args.trim().toLowerCase();
+      if (!wanted) return localTurn(text, 'Mode: ' + modes.modeInfo(state.settings.mode).label + '. ' + modes.modeInfo(state.settings.mode).tagline);
+      if (!modes.MODES[wanted]) return localTurn(text, 'Modes: ' + Object.keys(modes.MODES).join(', ') + '. Pick one.');
+      updateSettings({mode: wanted});
+      return localTurn(text, modes.MODES[wanted].label + ' mode. ' + modes.MODES[wanted].tagline);
+    }
+    case '/session': {
+      const [verb, n] = args.trim().toLowerCase().split(/\s+/);
+      const r = verb === 'pause' ? pauseSession() : verb === 'resume' ? resumeSession() : verb === 'stop' || verb === 'end' ? stopSession()
+        : startSession(ws.SESSION_MINUTES.includes(Number(n)) ? Number(n) : state.settings.sessionMinutes);
+      return localTurn(text, r.ok ? statusLine() : 'That does not apply right now.');
+    }
+    case '/time': { const snap = workSession.snapshot(); return localTurn(text, snap.active ? sessions.formatRemaining(snap.remainingMs) + ' left.' : 'No session is running.'); }
+    case '/checkin': { const r = runCheckin({force: true}); return localTurn(text, r.shown ? 'Look at me.' : 'Not now: ' + r.reason); }
+    case '/ask': {
+      const q = checkins.parseQuickAsk(args);
+      if (!q) return localTurn(text, 'Format: /ask Question | Answer | Answer (two to four answers).');
+      const list = state.settings.customCheckins.concat([q]);
+      if (list.length > ws.MAX_CUSTOM_CHECKINS) return localTurn(text, 'I already have ' + ws.MAX_CUSTOM_CHECKINS + ' of your questions. Remove some in Settings.');
+      updateSettings({customCheckins: list});
+      return localTurn(text, 'Added. I will ask it eventually. Edit replies in Settings.');
+    }
+    case '/remember': { const note = notes.add(args); return localTurn(text, note ? 'Noted. Stored on this computer only.' + (state.settings.notesInContext ? '' : ' Turn on "Use my notes in AI context" for the model to see it.') : 'Remember what. Write it after /remember.'); }
+    case '/notes': { const list = notes.list(); return localTurn(text, list.length ? list.map((n, i) => (i + 1) + '. ' + n.text).join('  ') : 'No notes.'); }
+    case '/forget-notes': notes.clear(); return localTurn(text, 'Forgotten. Deliberately.');
+    case '/packet': { const r = await exportPacket(); return localTurn(text, r.saved ? 'Packet saved as ' + r.name + '.' : 'Packet not saved.'); }
+    case '/retry': return retryLast();
+    case '/compact': updateSettings({chatCompact: !state.settings.chatCompact}); pushChat({type: 'compact', compact: state.settings.chatCompact}); return null;
+    case '/sneeze': gag('sneeze'); return localTurn(text, 'That did not happen.');
+    case '/hop': gag('hop'); return localTurn(text, 'Once. Do not ask again.');
+    case '/demo': demo.play(); return localTurn(text, 'Very well. Watch me, not this panel.');
+    case '/inspect': openInspector(); return localTurn(text, 'Inspector opened. Try not to stare.');
+    default: return localTurn(text, 'I do not know ' + command.slice(0, 24) + '. Try /help.');
+  }
+}
+function retryLast() {
+  const last = state.lastUserText;
+  if (!last) return localTurn(null, 'Nothing to retry.');
+  return chatSend(last, {retry: true});
+}
+async function exportPacket(target) {
+  const block = notes.cross(state.settings.notesInContext, 'packet');
+  const packet = packets.buildPacket({mode: state.settings.mode, semanticState: semantic.current, visualState: state.familiarState,
+    session: workSession.snapshot(), messages: conversation.list(), notesBlock: block, version: app.getVersion()});
+  let file = target;
+  if (!file) {
+    const r = await dialog.showSaveDialog(state.chatWin || undefined, {title: 'Export context packet',
+      defaultPath: path.join(app.getPath('downloads'), 'dexter-packet-' + new Date().toISOString().slice(0, 10) + '.md'),
+      filters: [{name: 'Markdown', extensions: ['md']}, {name: 'JSON', extensions: ['json']}]});
+    if (r.canceled || !r.filePath) return {saved: false};
+    file = r.filePath;
+  }
+  fs.writeFileSync(file, file.endsWith('.json') ? JSON.stringify(packet, null, 2) : packets.packetMarkdown(packet), {mode: 0o600});
+  events.record('app', 'packet-exported', {notes: Boolean(block)});
+  return {saved: true, name: path.basename(file)};
+}
+async function chatSend(raw, {retry = false} = {}) {
   const text = typeof raw === 'string' ? raw.slice(0, 4000).trim() : '';
   if (!text) return {ok: false};
   events.record('interaction', 'chat-send', {chars: text.length});
-  const command = persona.parseCommand(text);
-  if (command) {
-    switch (command.name) {
-      case '/help': localTurn(text, persona.helpText()); break;
-      case '/treat': localTurn(text, 'Very well. One treat.', ['treat']); break;
-      case '/huff': localTurn(text, 'Hff. Formally lodged.', ['huff']); break;
-      case '/nap': localTurn(text, state.napping ? 'Awake. Reluctantly.' : 'I am not available for consultation.', ['nap']); break;
-      case '/quiet': updateSettings({quiet: !state.settings.quiet}); localTurn(text, state.settings.quiet ? 'Silence. A reasonable policy.' : 'Complaints may resume.'); break;
-      case '/status': localTurn(text, 'State: ' + state.familiarState + (state.napping ? ' (napping)' : '') + '. Local AI: ' + state.aiStatus +
-        '. Speech: ' + (state.settings.ttsEnabled ? state.settings.ttsEngine : 'off') + '. Check-ins: ' + (state.settings.checkinsEnabled ? 'every ' + state.settings.checkinMinutes + ' min' : 'off') + '.'); break;
-      case '/clear': conversation.clear(); pushChat({type: 'reset', snapshot: chatSnapshot()}); break;
-      default: localTurn(text, 'I do not know ' + command.name.slice(0, 24) + '. Try /help.');
-    }
-    return {ok: true};
-  }
+  const decision = router.route(text, {aiEnabled: state.settings.aiEnabled});
+  events.record('ai', 'route-' + decision.path, {reason: decision.reason});
+  pushChat({type: 'route', path: decision.path, reason: decision.reason});
+  if (decision.path === 'command') { await runCommand(text, decision.command, decision.args || ''); return {ok: true}; }
+  if (!retry) state.lastUserText = text;
   if (ai.busy()) return {ok: false, detail: 'Still answering. Stop the current reply first.'};
   pushChat({type: 'message', message: conversation.add('user', text)});
   if (!state.settings.aiEnabled) {
@@ -537,11 +868,12 @@ async function chatSend(raw) {
   const pending = conversation.add('assistant', '', 'streaming');
   pushChat({type: 'message', message: pending});
   setAiStatus('streaming', 'Dexter is considering it.');
-  const thinking = persona.eventLine('aiThinking');
-  signal(thinking.state, 60, 30000, '');
+  semantic.enter('thinking', 'model request', {force: true});
   let collected = '';
+  // Continuity firewall: notes cross into the model request only when allowed.
+  const block = notes.cross(state.settings.notesInContext, 'chat');
   const result = await ai.streamChat({
-    messages: conversation.context(), systemPrompt: persona.SYSTEM_PROMPT,
+    messages: conversation.context(), systemPrompt: persona.SYSTEM_PROMPT + (block ? '\n\n' + block.text : ''),
     onToken: token => { collected += token; pushChat({type: 'token', id: pending.id, text: token}); }
   });
   const finalText = result.text || collected;
@@ -551,16 +883,16 @@ async function chatSend(raw) {
   pushChat({type: 'done', id: pending.id, status, text: finalText, detail: result.detail || ''});
   if (result.status === 'done' || result.status === 'truncated') {
     setAiStatus('ready', result.model ? 'Connected · ' + result.model : 'Connected.');
-    signal('watching', 65, 1800, '');
+    semantic.enter('watching', 'reply delivered', {force: true});
     deliverReply(finalText);
   } else if (result.status === 'cancelled') {
     setAiStatus('ready', 'Reply stopped.');
-    signal('idle', 50, 800, '');
+    semantic.enter('idle', 'reply cancelled', {force: true});
   } else {
     const kind = result.status === 'offline' ? 'aiOffline' : 'aiError';
     setAiStatus(result.status === 'offline' ? 'offline' : result.status === 'disabled' ? 'off' : 'error', result.detail || '');
     const line = persona.eventLine(kind);
-    signal(line.state, 70, 2000, '');
+    semantic.enter('blocked', kind, {force: true});
     pushChat({type: 'message', message: conversation.add('dexter', line.line + (result.detail ? ' (' + result.detail + ')' : ''), 'error')});
   }
   conversation.save();
@@ -569,11 +901,11 @@ async function chatSend(raw) {
 
 // ---------------------------------------------------------------- diagnostics
 function cspOk() {
-  const pages = ['index.html', 'ui/chat.html', 'ui/settings.html'];
+  const pages = ['index.html', 'ui/chat.html', 'ui/settings.html', 'ui/inspector.html', 'ui/bubble.html'];
   try { return pages.every(p => /connect-src 'none'/.test(fs.readFileSync(path.join(ROOT, p), 'utf8'))); } catch { return false; }
 }
 function snapshot() {
-  const windows = [['pet', state.win], ['chat', state.chatWin], ['settings', state.settingsWin]].filter(([, w]) => alive(w)).map(([name, w]) => {
+  const windows = [['pet', state.win], ['chat', state.chatWin], ['settings', state.settingsWin], ['inspector', state.inspectorWin], ['bubble', state.bubbleWin]].filter(([, w]) => alive(w)).map(([name, w]) => {
     const p = w.webContents.getLastWebPreferences?.() || {};
     return {name, sandbox: p.sandbox === true, contextIsolation: p.contextIsolation === true, nodeIntegration: p.nodeIntegration === true};
   });
@@ -581,7 +913,7 @@ function snapshot() {
   for (const m of app.getAppMetrics()) { memoryMB += (m.memory?.workingSetSize || 0) / 1024; cpuPercent += m.cpu?.percentCPUUsage || 0; }
   const endpoint = ws.validateEndpoint(state.settings.aiEndpoint, {allowRemote: true});
   const bounds = alive(state.win) ? state.win.getBounds() : null;
-  const channels = ['dexter:hit', 'dexter:move', 'dexter:drag-end', 'dexter:menu', 'dexter:status', 'dexter:checkin-answer', 'dexter:bubble-dismissed', 'dexter:open-chat', 'dexter:speech-state'];
+  const channels = ['dexter:hit', 'dexter:move', 'dexter:drag-end', 'dexter:menu', 'dexter:status', 'dexter:checkin-answer', 'dexter:bubble-dismissed', 'dexter:open-chat', 'dexter:speech-state', 'dexter:dev'];
   return {
     now: Date.now(), settings: {...state.settings}, windows, cspConnectNone: cspOk(), egressCount: state.egressCount, egressWhileDisabled: state.egressWhileDisabled,
     trayAlive: Boolean(state.tray && !state.tray.isDestroyed()), passThrough: state.passThrough,
@@ -594,6 +926,22 @@ function snapshot() {
     conversationSize: conversation.size, eventCounts: events.summary(), recentEvents: events.recent(40),
     app: {name: app.getName(), version: app.getVersion(), packaged: app.isPackaged},
     platform: {os: process.platform, arch: process.arch, release: os.release(), electron: process.versions.electron, chrome: process.versions.chrome}
+  };
+}
+function inspectorSnapshot() {
+  const profile = attention.profileFor(eff().intensity);
+  const decisions = events.recent(200).filter(e => e.type === 'checkin' || e.name.startsWith('event-') || e.name.startsWith('route-')).slice(-15);
+  return {
+    at: Date.now(),
+    familiar: {visual: state.familiarState, semantic: semantic.current, napping: state.napping, history: semantic.history().slice(-12), tier: 'verified'},
+    mode: {id: state.settings.mode, ...modes.modeInfo(state.settings.mode), overlay: undefined, tier: 'configured'},
+    attention: {used: budget.used(Date.now()), cap: profile.hourlyCap, minGapMinutes: Math.round(profile.minGapMs / 60000), decisions, tier: 'inferred'},
+    session: {...workSession.snapshot(), tier: 'verified'},
+    services: {ai: state.aiStatus + (state.aiDetail ? ' — ' + state.aiDetail : ''), tts: state.ttsStatus, stt: state.sttStatus, hotkey: state.hotkeyStatus,
+      notifications: state.settings.nativeNotifications ? (Notification.isSupported() ? 'on' : 'unsupported') : 'off', tier: 'verified'},
+    memory: {notes: notes.size, crossings: notes.crossings, notesInContext: state.settings.notesInContext, conversation: conversation.size, tier: 'verified'},
+    journal: state.settings.keepJournal ? journal.read().slice(-20) : null,
+    audit: diagnostics.runSelfAudit(snapshot())
   };
 }
 async function exportReport(target) {
@@ -615,7 +963,8 @@ async function exportReport(target) {
 // ---------------------------------------------------------------- IPC
 function fromPet(event) { return alive(state.win) && event.sender === state.win.webContents; }
 function fromUi(event, which) {
-  const allowed = which === 'settings' ? [state.settingsWin] : which === 'chat' ? [state.chatWin] : [state.settingsWin, state.chatWin];
+  const allowed = which === 'settings' ? [state.settingsWin] : which === 'chat' ? [state.chatWin] : which === 'inspector' ? [state.inspectorWin]
+    : which === 'bubble' ? [state.bubbleWin] : [state.settingsWin, state.chatWin, state.inspectorWin];
   return allowed.some(w => alive(w) && event.sender === w.webContents) && String(event.senderFrame?.url || '').startsWith('dexter://app/ui/');
 }
 function handle(channel, which, fn) {
@@ -649,9 +998,11 @@ function setupIpc() {
     state.napping = status.napping === true;
   });
   ipcMain.on('dexter:checkin-answer', (event, answer) => {
-    if (!fromPet(event) || !answer || typeof answer.id !== 'string') return;
-    answerCheckin(answer.id, answer.index);
+    if (!fromPet(event) || !answer || typeof answer.id !== 'string' || !Array.isArray(answer.path)) return;
+    answerCheckin(answer.id, answer.path.slice(0, 2));
   });
+  // Five quick pokes open the developer menu, but only when the user enabled it.
+  ipcMain.on('dexter:dev', event => { if (fromPet(event) && state.settings.developerTools) devMenu().popup({window: state.win}); });
   ipcMain.on('dexter:bubble-dismissed', event => {
     if (!fromPet(event)) return;
     state.bubbleOpen = false;
@@ -667,7 +1018,10 @@ function setupIpc() {
   ipcMain.handle('dexter:piper', async (event, text) => {
     if (!fromPet(event) || typeof text !== 'string') throw new Error('Forbidden');
     if (!state.settings.ttsEnabled || state.settings.ttsEngine !== 'piper') throw new Error('Piper is not enabled.');
+    const cached = state.settings.ttsCache ? ttsCache.get(text, state.settings.piperModel, state.settings.ttsRate) : null;
+    if (cached) { events.record('tts', 'cache-hit', {}); return new Uint8Array(cached); }
     const wav = await piper.synthesize(text, state.settings);
+    if (state.settings.ttsCache) { try { ttsCache.put(text, state.settings.piperModel, state.settings.ttsRate, wav); } catch {} }
     return new Uint8Array(wav);
   });
   ipcMain.on('dexter:piper-cancel', event => { if (fromPet(event)) piper.cancel(); });
@@ -696,6 +1050,48 @@ function setupIpc() {
   handle('chat:cancel', 'chat', () => { ai.cancel(); events.record('ai', 'cancel', {}); return true; });
   handle('chat:clear', 'any', () => { conversation.clear(); pushChat({type: 'reset', snapshot: chatSnapshot()}); return true; });
   handle('chat:open-settings', 'chat', () => { openSettings('ai'); return true; });
+  handle('chat:retry', 'chat', () => retryLast());
+  handle('chat:packet', 'chat', () => exportPacket());
+  handle('chat:compact', 'chat', on => { updateSettings({chatCompact: on === true}); return state.settings.chatCompact; });
+  handle('chat:snap', 'chat', () => snapChat());
+  handle('inspector:snapshot', 'inspector', () => inspectorSnapshot());
+  handle('inspector:open', 'any', () => { openInspector(); return true; });
+  handle('journal:read', 'any', () => (state.settings.keepJournal ? journal.read() : []));
+  handle('journal:clear', 'any', () => { journal.clear(); return true; });
+  handle('notes:add', 'settings', text => notes.add(text));
+  handle('notes:remove', 'settings', id => notes.remove(String(id)));
+  handle('notes:clear', 'settings', () => { notes.clear(); return true; });
+  handle('session:start', 'any', minutes => startSession(minutes));
+  handle('session:pause', 'any', () => pauseSession());
+  handle('session:resume', 'any', () => resumeSession());
+  handle('session:stop', 'any', () => stopSession());
+  handle('demo:play', 'any', () => demo.play());
+  handle('piper:voices', 'settings', () => listVoices(state.settings.piperVoicesDir));
+  handle('tts:cache-clear', 'settings', () => { ttsCache.clear(); return ttsCache.stats(); });
+  handle('stt:check', 'settings', () => checkWhisper(state.settings));
+  // Microphone: asked for only when the user presses the record button with speech input enabled.
+  handle('stt:prepare', 'chat', async () => {
+    if (!state.settings.sttEnabled) return {ok: false, detail: 'Speech input is off in Settings.'};
+    const checked = checkWhisper(state.settings);
+    if (!checked.ok) return {ok: false, detail: checked.problems[0]};
+    if (PLATFORM_MAC && systemPreferences.getMediaAccessStatus('microphone') !== 'granted') {
+      const granted = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
+      if (!granted) return {ok: false, detail: 'macOS microphone access was not granted.'};
+    }
+    return {ok: true};
+  });
+  handle('stt:transcribe', 'chat', async bytes => {
+    if (!state.settings.sttEnabled) throw new Error('Speech input is off.');
+    state.sttStatus = 'transcribing';
+    try {
+      const text = await whisper.transcribe(bytes instanceof Uint8Array ? bytes : new Uint8Array(0), state.settings);
+      state.sttStatus = 'ready'; events.record('interaction', 'stt-transcribed', {chars: text.length});
+      return {ok: true, text};
+    } catch (error) { state.sttStatus = 'error: ' + error.message.slice(0, 60); return {ok: false, detail: error.message}; }
+  });
+  handle('stt:cancel', 'chat', () => { whisper.cancel(); return true; });
+  handle('bubble:dismiss', 'bubble', () => { state.bubbleWin?.hide(); return true; });
+  handle('bubble:open-chat', 'bubble', () => { state.bubbleWin?.hide(); openChat(); return true; });
   handle('tts:test', 'settings', () => {
     if (!state.settings.ttsEnabled) return {ok: false, detail: 'Turn on speech first.'};
     sendPet('dexter:speech', {op: 'say', text: 'Hff. This is my voice. Do not get used to it.', interrupt: true});
@@ -710,7 +1106,7 @@ function setupIpc() {
 }
 
 // ---------------------------------------------------------------- protocol
-const TOP_FILES = new Set(['index.html', 'app.js', 'styles.css', 'overlay.css', 'renderer.js', 'hit-test.js', 'speech-queue.js', 'manifest.webmanifest']);
+const TOP_FILES = new Set(['index.html', 'app.js', 'styles.css', 'overlay.css', 'renderer.js', 'hit-test.js', 'speech-queue.js', 'audio-wav.js', 'manifest.webmanifest']);
 const ASSET_FOLDERS = new Set(['src', 'assets', 'icons', 'ui']);
 const SAFE = /^[A-Za-z0-9_./-]+$/;
 const TYPES = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -763,8 +1159,13 @@ app.whenReady().then(() => {
   app.setAppUserModelId('dev.stinkyweasel.dexterdesk');
   app.setName('Dexter Desk Familiar');
   const ses = session.defaultSession;
-  ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
-  ses.setPermissionCheckHandler(() => false);
+  // Every permission is refused, except microphone audio for the conversation
+  // panel while the user has enabled speech input. Never camera, never screen.
+  const micAllowed = (wc, permission, details) => permission === 'media' && state.settings?.sttEnabled === true &&
+    alive(state.chatWin) && wc === state.chatWin.webContents &&
+    (details?.mediaTypes ? details.mediaTypes.length > 0 && details.mediaTypes.every(t => t === 'audio') : details?.mediaType === 'audio');
+  ses.setPermissionRequestHandler((wc, permission, callback, details) => callback(micAllowed(wc, permission, details)));
+  ses.setPermissionCheckHandler((wc, permission, _origin, details) => micAllowed(wc, permission, details));
   // Electron downloads Hunspell dictionaries from redirector.gvt1.com on Linux and
   // Windows even when every window has spellcheck:false (found by the egress audit).
   // Disable the spellchecker and point any download at an unroutable loopback port.
@@ -787,6 +1188,13 @@ app.whenReady().then(() => {
   applyLoginItem();
   setAiStatus(state.settings.aiEnabled ? 'idle' : 'off', state.settings.aiEnabled ? 'Enabled. Not yet connected.' : 'Local AI is off.');
   armCheckins();
+  armGags();
+  applyHotkey();
+  // Optionally greet with the last remembered reply.
+  if (state.settings.showLastReplyOnStart && state.settings.rememberConversation) {
+    const last = conversation.list().filter(m => m.role === 'assistant' && m.content).pop();
+    if (last) state.win.webContents.once('did-finish-load', () => setTimeout(() => showBubble({kind: 'reply', text: last.content.slice(0, 180), more: last.content.length > 180, timeoutMs: 8000}), 800));
+  }
   for (const kind of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(kind, () => onDisplaysChanged(kind));
   powerMonitor.on('suspend', () => {
     clearTimeout(state.checkinTimer); state.checkinTimer = null;
@@ -801,12 +1209,15 @@ app.whenReady().then(() => {
   });
   app.on('activate', () => restore());
   events.record('app', 'ready', {smoke: SMOKE_TEST});
-  if (SMOKE_TEST) require('./smoke.cjs').run({app, state, events, petMenu, trayMenu, openChat, openSettings, updateSettings, restore, snapshot, exportReport, runCheckin, onDisplaysChanged, conversation: () => conversation});
+  if (SMOKE_TEST) require('./smoke.cjs').run({app, state, events, petMenu, trayMenu, devMenu, openChat, openSettings, openInspector, updateSettings, restore, snapshot, exportReport, exportPacket, runCheckin, onDisplaysChanged,
+    conversation: () => conversation, showBubble, semantic, workSession, startSession, pauseSession, resumeSession, stopSession, notes: () => notes, journal: () => journal, demo, inspectorSnapshot, chatSend});
 });
 app.on('window-all-closed', () => { if (!PLATFORM_MAC) app.quit(); });
 app.on('before-quit', () => {
   state.quitting = true;
   clearTimeout(state.saveTimer); clearTimeout(state.checkinTimer); clearTimeout(state.displayTimer);
-  ai.cancel(); piper.cancel();
+  clearTimeout(state.sessionTimer); clearTimeout(state.gagTimer); clearTimeout(state.chatBoundsTimer);
+  ai.cancel(); piper.cancel(); whisper.cancel(); demo.stop(); semantic.dispose();
+  try { globalShortcut.unregisterAll(); } catch {}
   if (state.settings) { rememberPosition(); save(); conversation.save(); }
 });

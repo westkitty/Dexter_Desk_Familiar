@@ -89,9 +89,9 @@ Select "Follow state" or inspect any one clip directly. The renderer enforces mu
 
 The eight-clip source reached `main` via PR #8. Current hosted Pages revision must be checked separately against its release manifest; a merge is not a live-deployment certificate. Native Safari, physical mobile accessibility, cross-version service-worker rollback, and long-session performance remain release gates. See docs/CEL_SHADED_ANIMATION.md.
 
-## Dexter Desktop (macOS) — 0.2.0-alpha.1, on `main`
+## Dexter Desktop (macOS) — 0.2.0-alpha.1 on `main`; 0.3.0-alpha.1 in PR #12
 
-A separate macOS desktop edition of Dexter lives in `desktop/`. He floats in a transparent window beside your work and runs the same behavior engine and approved art as the web edition, which it does not replace or modify. It was merged to `main` on 2026-11-01 through PRs #10 and #9.
+A separate macOS desktop edition of Dexter lives in `desktop/`. He floats in a transparent window beside your work and runs the same behavior engine and approved art as the web edition, which it does not replace or modify. Version 0.2.0 was merged to `main` on 2026-11-01 through PRs #10 and #9. Version 0.3.0 (draft PR #12) adds the remaining WestCat features: modes, sessions, an inspector, notes, a check-in editor, push-to-talk, a shortcut, and more. All of them are optional.
 
 **What it does:** transparent always-on-top window; only Dexter's visible pixels catch clicks; drag, scale, opacity and flip; a menu-bar icon with Show, Hide, Restore, Talk, Settings and Quit; recovery when a display changes; preferences that survive relaunch. Optional, and all off by default: a conversation panel with a local Ollama-compatible AI (loopback only unless you allow another host; nothing downloaded), on-device speech, and check-ins in Dexter's voice. A settings window includes diagnostics and a self-audit. There is no microphone and no keyboard, screen or activity monitoring.
 

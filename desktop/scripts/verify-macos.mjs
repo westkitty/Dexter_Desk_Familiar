@@ -28,6 +28,9 @@ export function verifyApp(app, {expectVersion} = {}) {
     category: (() => { try { return plist('LSApplicationCategoryType', info); } catch { return ''; } })()
   };
   assert(facts.identifier === IDENTIFIER, 'unexpected bundle identifier ' + facts.identifier);
+  // Without this string macOS terminates the app the moment it touches the microphone.
+  facts.microphoneUsage = plist('NSMicrophoneUsageDescription', info);
+  assert(/records only while you hold/.test(facts.microphoneUsage), 'missing microphone usage description');
   assert(facts.executable === 'Dexter Desk Familiar', 'unexpected executable ' + facts.executable);
   if (expectVersion) assert(facts.version === expectVersion, 'version ' + facts.version + ' != ' + expectVersion);
   const exe = path.join(app, 'Contents', 'MacOS', facts.executable);

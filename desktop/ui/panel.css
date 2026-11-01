@@ -100,3 +100,41 @@ h2 { font-size: 16px; margin: 10px 0 6px; }
 }
 @media (forced-colors: active) { button, .msg, .chat-panel { border: 1px solid CanvasText; } }
 @media (prefers-reduced-motion: reduce) { .settings-main { scroll-behavior: auto; } }
+
+/* ---- Detached bubble window ---- */
+body.bubble-window { background: transparent; overflow: hidden; }
+.float-bubble { margin: 6px; padding: 8px 11px; border-radius: 12px; background: #182226f2; border: 1px solid var(--line); box-shadow: 0 4px 14px #000a; -webkit-app-region: drag; }
+.float-bubble p { margin: 2px 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.float-bubble-head { display: flex; justify-content: space-between; align-items: center; font-size: 9px; letter-spacing: .12em; }
+.float-bubble button { -webkit-app-region: no-drag; }
+
+/* ---- Inspector ---- */
+body.inspector { background: var(--bg); }
+.inspector-main { padding: 14px 18px 40px; }
+.inspector-head h1 { margin: 0 0 4px; font-size: 16px; }
+.legend { font-size: 11px; color: var(--muted); }
+.tier { font-size: 9.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line); vertical-align: middle; font-weight: 500; }
+.tier-verified { color: var(--ok); } .tier-configured { color: var(--accent); } .tier-inferred { color: var(--warn); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 10px; margin-top: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { font-size: 13px; margin: 2px 0 6px; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12px; }
+.card dt { color: var(--muted); }
+.card dd { margin: 0; overflow-wrap: anywhere; }
+.timeline { margin: 6px 0 0; padding-left: 16px; font-size: 11px; color: var(--muted); max-height: 160px; overflow: auto; }
+
+/* ---- Conversation additions ---- */
+.chat-route { margin: 0 12px; font-size: 10px; color: var(--muted); min-height: 13px; }
+body.chat.compact .chat-log .msg:not(:nth-last-child(-n+2)) { display: none; }
+body.chat.compact .chat-foot span { display: none; }
+.composer button.mic[aria-pressed="true"] { background: #6b2a24; color: #fff; }
+.chat-tools { display: flex; gap: 2px; -webkit-app-region: no-drag; }
+
+/* ---- Settings additions ---- */
+.editor-list { list-style: none; padding: 0; margin: 6px 0; }
+.editor-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.editor fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 6px 0; padding: 6px 10px; }
+.editor legend { color: var(--muted); font-size: 11px; }
+.editor .pair { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; margin: 4px 0; }
+.editor input[type="text"] { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 4px 7px; width: 100%; }

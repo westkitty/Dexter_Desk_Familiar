@@ -31,7 +31,24 @@ if (native) {
   const bubbleMore = bubble.querySelector('.desktop-bubble-more');
   let bubbleTimer = null, bubbleKind = null;
 
+  // Typewriter reveal (adapted from WESTCAT-OVERLAY-RELOADED's poll overlay).
+  // Screen readers get the whole text at once via aria-label; motion settings bypass it.
+  let typeTimer = null;
+  function typewrite(text) {
+    clearInterval(typeTimer); typeTimer = null;
+    bubbleText.setAttribute('aria-label', text);
+    if (!prefs.typewriter || reducedMotion() || text.length < 4) { bubbleText.textContent = text; return; }
+    const cps = Math.min(120, Math.max(15, Number(prefs.typewriterCps) || 45));
+    let shown = 0;
+    bubbleText.textContent = '';
+    typeTimer = setInterval(() => {
+      shown = Math.min(text.length, shown + Math.max(1, Math.round(cps / 30)));
+      bubbleText.textContent = text.slice(0, shown);
+      if (shown >= text.length) { clearInterval(typeTimer); typeTimer = null; }
+    }, 33);
+  }
   function hideBubble(notify = true) {
+    clearInterval(typeTimer); typeTimer = null;
     clearTimeout(bubbleTimer); bubbleTimer = null;
     const wasCheckin = bubbleKind === 'checkin';
     bubble.hidden = true; bubbleKind = null;
@@ -45,13 +62,14 @@ if (native) {
     if (payload.kind === 'hide') { hideBubble(false); return; }
     clearTimeout(bubbleTimer);
     bubbleKind = payload.kind;
-    bubbleText.textContent = String(payload.text || '').slice(0, 400);
+    typewrite(String(payload.text || '').slice(0, 400));
     bubbleChoices.replaceChildren();
     if (payload.kind === 'checkin' && Array.isArray(payload.choices)) {
       payload.choices.slice(0, 4).forEach((label, index) => {
         const button = document.createElement('button');
         button.type = 'button'; button.textContent = String(label).slice(0, 40);
-        button.addEventListener('click', () => { hideBubble(false); native.answer(String(payload.id), index); });
+        const path = (Array.isArray(payload.path) ? payload.path : []).concat([index]);
+        button.addEventListener('click', () => { hideBubble(false); native.answer(String(payload.id), path); });
         bubbleChoices.appendChild(button);
       });
     }
@@ -150,6 +168,7 @@ if (native) {
     if (prefs.intensity !== previousIntensity && INTENSITY[prefs.intensity])
       document.dispatchEvent(new CustomEvent('dexter-desktop-intensity', {detail: INTENSITY[prefs.intensity]}));
     if (!prefs.tts.enabled) speech.cancel();
+    applyAnimationSpeed();
     cachedMask.source = null;
   }
   systemReduced?.addEventListener?.('change', () => setControl('motionToggle', reducedMotion()));
@@ -250,6 +269,41 @@ if (native) {
   observer.observe(pet, {attributes: true, attributeFilter: ['data-state']});
   if (napLabel) observer.observe(napLabel, {childList: true, characterData: true, subtree: true});
 
+  // ------------------------------------------------------------ one-shot tricks and animation speed
+  // Easing one-shots adapted from WESTCAT-OVERLAY-RELOADED's out_cubic / out_back
+  // cluster easing and its sneeze/drop gags. Skipped entirely under reduced motion.
+  const GAGS = {
+    hop: {frames: [{translate: '0 0'}, {translate: '0 -14%'}, {translate: '0 0'}], ms: 520, easing: 'cubic-bezier(.34,1.56,.64,1)'},
+    sneeze: {frames: [{scale: '1 1'}, {scale: '1.04 0.94', offset: 0.35}, {scale: '0.97 1.05', offset: 0.55}, {scale: '1 1'}], ms: 620, easing: 'cubic-bezier(.33,1,.68,1)', line: 'Hff—tchoo. That did not happen.'},
+    shake: {frames: [{rotate: '0deg'}, {rotate: '-4deg'}, {rotate: '4deg'}, {rotate: '-2deg'}, {rotate: '0deg'}], ms: 480, easing: 'ease-out'},
+    drop: {frames: [{translate: '0 -40%', opacity: 0}, {translate: '0 0', opacity: 1}], ms: 640, easing: 'cubic-bezier(.34,1.56,.64,1)'}
+  };
+  const gagTarget = pet.querySelector('.sprite') ? pet : pet;
+  function playGag(name) {
+    const g = GAGS[name];
+    if (!g || reducedMotion() || document.hidden) return;
+    const media = visibleMedia() || gagTarget;
+    try { media.animate(g.frames, {duration: g.ms / (Number(prefs.animationSpeed) || 1), easing: g.easing}); } catch {}
+    if (g.line && !prefs.quiet) hint(g.line);
+  }
+  native.onGag(playGag);
+  function applyAnimationSpeed() {
+    const rate = Math.min(2, Math.max(0.5, Number(prefs.animationSpeed) || 1));
+    const video = document.getElementById('celVideo');
+    if (video) video.playbackRate = rate;
+    for (const a of document.getAnimations ? document.getAnimations() : []) { try { a.playbackRate = rate; } catch {} }
+  }
+  document.addEventListener('animationstart', applyAnimationSpeed);
+  document.getElementById('celVideo')?.addEventListener('play', applyAnimationSpeed);
+  // Five quick pokes open the developer menu when it is enabled (Reloaded's five-click dev panel).
+  let devClicks = [];
+  document.addEventListener('dexter-desktop-poke', () => {
+    if (!prefs.developerTools) return;
+    const now = performance.now();
+    devClicks = devClicks.filter(t => now - t < 1800).concat(now);
+    if (devClicks.length >= 5) { devClicks = []; native.dev(); }
+  });
+
   // ------------------------------------------------------------ pointer: hover routing, drag, poke
   // Forward only a boolean hit test within this overlay, never coordinates or a history.
   document.addEventListener('mousemove', event => {
@@ -298,7 +352,7 @@ if (native) {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { endDrag(true); native.hit(false); speech.cancel(); }
   });
-  window.addEventListener('pagehide', () => { observer.disconnect(); speech.cancel(); clearTimeout(bubbleTimer); clearTimeout(hintTimeout); });
+  window.addEventListener('pagehide', () => { observer.disconnect(); speech.cancel(); clearTimeout(bubbleTimer); clearTimeout(hintTimeout); clearInterval(typeTimer); document.removeEventListener('animationstart', applyAnimationSpeed); });
   // The browser version's initial slogan stays out of the tiny transparent overlay.
   document.body.classList.remove('desktop-has-thought');
   reportStatus();

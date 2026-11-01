@@ -18,7 +18,7 @@ for (const file of ['index.html', 'app.js', 'styles.css', 'src', 'assets', 'icon
   fs.cpSync(source, path.join(dest, file), {recursive: true, force: true});
 }
 for (const file of ['main.cjs', 'smoke.cjs', 'preload.cjs', 'preload-ui.cjs', 'window-state.cjs', 'renderer.js', 'hit-test.js',
-  'speech-queue.js', 'overlay.css', 'package.json']) {
+  'speech-queue.js', 'audio-wav.js', 'overlay.css', 'package.json']) {
   fs.copyFileSync(path.join(desktop, file), path.join(dest, file));
 }
 for (const dir of ['core', 'ui']) fs.cpSync(path.join(desktop, dir), path.join(dest, dir), {recursive: true, force: true});

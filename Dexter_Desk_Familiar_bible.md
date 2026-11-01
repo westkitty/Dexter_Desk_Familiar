@@ -74,3 +74,15 @@ This additive ledger records significant implementation decisions. It does not o
 ### Evidence discipline
 - An egress claim was retracted within this session when the syscall audit showed Chromium spellchecker traffic going through a local proxy. Audits now treat proxy ports, CONNECT requests and DNS as egress. Future sessions must not equate "connects to 127.0.0.1" with "no network" when a local proxy may exist.
 - Synthetic Electron events are not physical pointer proof. Physical QA is enumerated in `desktop/MACBOOK_QA.md`, and the release decision is in `docs/DESKTOP_RELEASE_READINESS.md`.
+
+## 2026-11-01 — Round 2: the remaining WestCat features (0.3.0-alpha.1)
+
+- **Owner direction:** "Implement them all." Interpreted as everything buildable as an opt-in, local, privacy-preserving module. Six items were declined with reasons given to the owner: shell execution, cloud routing, a hardcoded host, mock data, network sync and the SVG tools.
+- **Design rules kept:**
+  - modes never rewrite stored settings;
+  - every proactive feature (tricks, check-ins, session remarks) goes through the same attention arbiter;
+  - the microphone permission is granted only to the conversation panel's `webContents`, audio only, while enabled;
+  - transcripts are placed in the box, never auto-sent;
+  - notes cross into model requests only through the counted firewall;
+  - all new windows are sandboxed and destroyed on close.
+- **Lesson:** a smoke step returning a function from `executeJavaScript` fails with "could not be cloned". Scripts that only cause side effects must end with a plain value.
