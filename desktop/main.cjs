@@ -38,6 +38,10 @@ if (smokeProfile) {
 
 protocol.registerSchemesAsPrivileged([{scheme: 'dexter', privileges: {standard: true, secure: true, supportFetchAPI: true, stream: true}}]);
 app.commandLine.appendSwitch('disable-features', 'MediaSessionService');
+// Chromium background services Dexter never needs. Belt-and-braces with the
+// session settings below; verified by the syscall egress audit in CI.
+for (const flag of ['disable-background-networking', 'disable-component-update', 'disable-domain-reliability', 'no-pings', 'disable-breakpad'])
+  app.commandLine.appendSwitch(flag);
 
 // ---------------------------------------------------------------- state
 const state = {
@@ -761,6 +765,12 @@ app.whenReady().then(() => {
   const ses = session.defaultSession;
   ses.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   ses.setPermissionCheckHandler(() => false);
+  // Electron downloads Hunspell dictionaries from redirector.gvt1.com on Linux and
+  // Windows even when every window has spellcheck:false (found by the egress audit).
+  // Disable the spellchecker and point any download at an unroutable loopback port.
+  try { ses.setSpellCheckerEnabled(false); } catch {}
+  try { ses.setSpellCheckerDictionaryDownloadURL('http://127.0.0.1:9/'); } catch {}
+  if (!PLATFORM_MAC) { try { ses.setSpellCheckerLanguages([]); } catch {} }
   // Renderers may only load bundled dexter://app files. Model traffic happens
   // in this process, only through core/ollama.cjs, only when enabled.
   ses.webRequest.onBeforeRequest((details, callback) => callback({cancel: !details.url.startsWith('dexter://app/')}));

@@ -287,7 +287,9 @@ async function fullSmoke(ctx) {
   // ---------------------------------------------------------- resources
   const snap = ctx.snapshot();
   check(report, 'allRenderersIsolated', snap.windows.length === 3 && snap.windows.every(w => w.sandbox && w.contextIsolation && !w.nodeIntegration), snap.windows);
-  await js(chat, `document.getElementById('closeChat').click()`);
+  // The click closes (destroys) the very frame running it, so its result can never
+  // resolve; assert the observable outcome instead of awaiting the script.
+  js(chat, `document.getElementById('closeChat').click()`).catch(() => {});
   check(report, 'chatClosedReleased', await waitFor(() => state.chatWin === null));
   settingsWin.close();
   await waitFor(() => state.settingsWin === null);

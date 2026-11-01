@@ -27,27 +27,26 @@ jobs:
         run: npm run check
       - name: Install trace tool
         run: sudo apt-get update -qq && sudo apt-get install -y -qq strace xvfb
-      - name: Full runtime smoke with network syscall trace
+      - name: Fetch the Electron binary outside the audited run
+        working-directory: desktop
+        run: node node_modules/electron/install.js && test -x node_modules/electron/dist/electron
+      - name: Full runtime smoke with network syscall trace and egress audit
         working-directory: desktop
         env:
           DEXTER_DESKTOP_SMOKE: '1'
         run: |
-          xvfb-run -a strace -f -qq -e trace=connect,sendto,sendmsg,bind -o /tmp/dexter-net.log \
-            ./node_modules/.bin/electron --no-sandbox .stage/app 2>&1 | tee /tmp/smoke.log
+          xvfb-run -a strace -f -qq -s 300 -e trace=connect,sendto,sendmsg,write -o /tmp/dexter-net.log \
+            ./node_modules/electron/dist/electron --no-sandbox .stage/app 2>&1 | tee /tmp/smoke.log
           grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/smoke.log
-          echo "IP-family socket destinations seen:"
-          grep -E 'AF_INET' /tmp/dexter-net.log | grep -oE 'inet_addr\("[^"]+"\)|inet_pton\(AF_INET6, "[^"]+"' | sort | uniq -c || true
-          if grep -E 'AF_INET' /tmp/dexter-net.log | grep -oE 'inet_addr\("[^"]+"\)|inet_pton\(AF_INET6, "[^"]+"' | grep -vE '"127\.0\.0\.1"|"::1"'; then
-            echo "::error::Non-loopback network traffic observed"; exit 1
-          fi
-          echo "Egress audit PASS: only loopback (the smoke's own fake model server)."
+          # Fails on any non-loopback socket, any DNS lookup, and any proxy CONNECT.
+          node scripts/egress-audit.mjs /tmp/dexter-net.log
       - name: Quit and relaunch persistence
         working-directory: desktop
         run: |
           profile=$(mktemp -d)
           for phase in persist-write persist-verify; do
             DEXTER_DESKTOP_SMOKE=1 DEXTER_DESKTOP_SMOKE_PROFILE=$profile DEXTER_DESKTOP_SMOKE_PHASE=$phase \
-              xvfb-run -a ./node_modules/.bin/electron --no-sandbox .stage/app 2>&1 | tee /tmp/$phase.log
+              xvfb-run -a ./node_modules/electron/dist/electron --no-sandbox .stage/app 2>&1 | tee /tmp/$phase.log
             grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/$phase.log
           done
 
@@ -75,13 +74,24 @@ jobs:
           node scripts/verify-macos.mjs "$app"
           cmp -s .stage/Dexter.icns "$app/Contents/Resources/electron.icns"
           echo "Dexter app icon bytes verified"
-      - name: Full runtime smoke of the packaged macOS app
+      - name: Full runtime smoke of the packaged macOS app, with sampled socket audit
         env:
           DEXTER_DESKTOP_SMOKE: '1'
         run: |
           app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
-          "$app/Contents/MacOS/Dexter Desk Familiar" 2>&1 | tee /tmp/mac-smoke.log
+          "$app/Contents/MacOS/Dexter Desk Familiar" > /tmp/mac-smoke.log 2>&1 &
+          smoke=$!
+          : > /tmp/mac-sockets.log
+          # Sampling (every 100 ms) can miss very short connections; Linux CI runs the exhaustive syscall audit.
+          while kill -0 $smoke 2>/dev/null; do lsof -nP -i -a -c Dexter >> /tmp/mac-sockets.log 2>/dev/null || true; sleep 0.1; done
+          wait $smoke || { cat /tmp/mac-smoke.log; exit 1; }
+          cat /tmp/mac-smoke.log
           grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/mac-smoke.log
+          echo "Sockets observed (sampled):"; awk 'NR==1 || !/^COMMAND/' /tmp/mac-sockets.log | awk '{print $8, $9}' | sort | uniq -c || true
+          # Check BOTH endpoints of every local->remote pair; wildcard listeners are violations too.
+          if awk '!/^COMMAND/ {print $9}' /tmp/mac-sockets.log | tr -s '>' '\n' | sed 's/-$//' | grep -E ':' | grep -vE '^(127\.0\.0\.1|\[::1\]|localhost):[0-9]+$'; then
+            echo "::error::Non-loopback socket sampled from Dexter"; exit 1
+          fi
           echo "Synthetic in-app checks only. Physical pointer click-through is NOT verified by CI."
       - name: Build, mount, verify, copy out, launch and relaunch the DMG app
         if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
