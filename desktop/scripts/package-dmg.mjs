@@ -38,6 +38,7 @@ assert(!fs.existsSync(dmgPath) && !fs.existsSync(checksumPath),
 
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-dmg-stage-'));
 const mount = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-dmg-check-'));
+const trialInstall = fs.mkdtempSync(path.join(os.tmpdir(),'dexter-dmg-install-'));
 let attached = false;
 try {
   run('ditto', [sourceApp, path.join(stage,appName)]);
@@ -61,11 +62,17 @@ try {
   assert(fs.statSync(path.join(mountedApp,'Contents','MacOS','Dexter Desk Familiar')).mode & 0o111,
     'DMG application is not executable');
   console.log('DMG verified: read-only mount, exact app identifier, source-matched payload, Applications link.');
-  // Test *the mounted disk image*, not only the app source or build directory.
-  const exe = path.join(mountedApp,'Contents','MacOS','Dexter Desk Familiar');
+  // The real installation flow copies the app OUT of its read-only image before
+  // launching it. Test that handoff in a disposable install location without
+  // writing to ~/Applications or changing any user-owned app.
+  const installedApp = path.join(trialInstall,appName);
+  run('ditto',[mountedApp,installedApp],{timeout:120000});
+  assert(sha(path.join(installedApp,'Contents','Resources','app.asar'))===sha(sourceAsar),
+    'Copied app changed its packaged payload');
+  const exe = path.join(installedApp,'Contents','MacOS','Dexter Desk Familiar');
   execFileSync(exe,[],{env:{...process.env,DEXTER_DESKTOP_SMOKE:'1'},
     stdio:'inherit',timeout:60000});
-  console.log('Mounted DMG application runtime smoke: PASS');
+  console.log('Copied-out DMG application runtime smoke: PASS');
 } finally {
   let detachError = null;
   if (attached) {
@@ -73,6 +80,7 @@ try {
     catch(error) {detachError=error;}
   }
   fs.rmSync(stage,{recursive:true,force:true});
+  fs.rmSync(trialInstall,{recursive:true,force:true});
   if (!detachError) fs.rmSync(mount,{recursive:true,force:true});
   if(detachError)throw new Error('DMG was mounted but could not be detached: '+detachError.message);
 }
