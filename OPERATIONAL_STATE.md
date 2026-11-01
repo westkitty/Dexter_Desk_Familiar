@@ -241,5 +241,5 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
     - Its v0.2.2→0.3.0 version and file-count edits are stale.
     - Its "unverified candidate" notes were superseded by the verified records above.
     - Its cosmetic CSS (morning/day/evening hue tints, softened floor rings, eating glow, dimmer sleeping ring) was not applied, because it would change the live site's look without review and require an offline-cache bump. It remains recoverable from the archive tag.
-  - **Preserved:** tag `archive/uplift-presence-cadence-20261029` → `5478a36`, so deleting the branch loses nothing.
+  - **Preserved:** commit `5478a36` is recorded in `main`'s history by an "ours" merge that takes no changes, so deleting the branch loses nothing. (This session's git proxy refuses tag pushes, so an archive tag was not possible.)
 - **After merge:** the excess branches are deleted, leaving `main` as the only branch.
