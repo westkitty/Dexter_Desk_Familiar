@@ -38,7 +38,9 @@ assert(!fs.existsSync(dmgPath) && !fs.existsSync(checksumPath),
 
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-dmg-stage-'));
 const mount = fs.mkdtempSync(path.join(os.tmpdir(), 'dexter-dmg-check-'));
-const trialInstall = fs.mkdtempSync(path.join(os.tmpdir(),'dexter-dmg-install-'));
+// Place the extracted-app test under a normal project path, not /var/folders:
+// macOS sandbox extensions may reject helper-process media access inside /var/folders.
+const trialInstall = fs.mkdtempSync(path.join(out,'.dmg-install-probe-'));
 let attached = false;
 try {
   run('ditto', [sourceApp, path.join(stage,appName)]);
