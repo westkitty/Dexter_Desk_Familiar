@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="color-scheme" content="dark">
+  <title>Dexter Settings</title>
+  <link rel="stylesheet" href="./panel.css">
+</head>
+<body class="settings">
+  <a class="skip" href="#main">Skip to settings</a>
+  <nav class="settings-nav" aria-label="Settings sections">
+    <p class="brand"><strong>DEXTER</strong><small>House rules</small></p>
+    <ul>
+      <li><a href="#appearance">Appearance</a></li>
+      <li><a href="#window">Window</a></li>
+      <li><a href="#behavior">Interaction</a></li>
+      <li><a href="#animation">Animation</a></li>
+      <li><a href="#speech">Sound &amp; speech</a></li>
+      <li><a href="#ai">Local AI</a></li>
+      <li><a href="#checkins">Check-ins</a></li>
+      <li><a href="#accessibility">Accessibility</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#diagnostics">Diagnostics</a></li>
+      <li><a href="#reset">Reset &amp; recovery</a></li>
+    </ul>
+  </nav>
+  <main id="main" class="settings-main" tabindex="-1">
+    <p id="saved" class="saved" role="status" aria-live="polite"></p>
+
+    <section id="appearance" aria-labelledby="h-appearance">
+      <h2 id="h-appearance">Appearance</h2>
+      <label class="row"><span><strong>Artwork</strong><small>The original pixel portrait is canon. Other modes are optional.</small></span>
+        <select data-key="art"><option value="pixel">Original pixel Dexter</option><option value="cel">Accepted cel-shaded animations</option><option value="atlas">Candidate SNES atlas (unapproved)</option></select></label>
+      <label class="row"><span><strong>Face the other way</strong><small>Mirror Dexter horizontally.</small></span><input type="checkbox" data-key="flipped"></label>
+      <label class="row"><span><strong>Size</strong><small><output data-for="scale"></output></small></span><input type="range" min="60" max="200" step="10" data-key="scale" data-type="number"></label>
+      <label class="row"><span><strong>Opacity</strong><small><output data-for="opacity"></output> · never below 40%, so he cannot vanish.</small></span><input type="range" min="40" max="100" step="5" data-key="opacity" data-type="percent"></label>
+    </section>
+
+    <section id="window" aria-labelledby="h-window">
+      <h2 id="h-window">Window behavior</h2>
+      <label class="row"><span><strong>Always on top</strong><small>Float above other windows.</small></span><input type="checkbox" data-key="alwaysOnTop"></label>
+      <label class="row"><span><strong>Click through empty space</strong><small>Only Dexter's visible pixels catch the mouse.</small></span><input type="checkbox" data-key="preciseHitTest"></label>
+      <label class="row"><span><strong>Never take keyboard focus</strong><small>Clicking Dexter will not pull typing away from your current app. Use this window or the conversation panel for the keyboard.</small></span><input type="checkbox" data-key="passiveFocus"></label>
+      <label class="row" data-mac-only><span><strong>Show in Dock</strong><small>When off, Dexter lives only in the menu bar.</small></span><input type="checkbox" data-key="showInDock"></label>
+      <label class="row"><span><strong>Open at login</strong><small>Off by default.</small></span><input type="checkbox" data-key="launchAtLogin" id="launchAtLogin"></label>
+      <div class="actions"><button type="button" data-command="window:restore">Restore Dexter</button><button type="button" data-command="window:reset-position">Reset position</button></div>
+    </section>
+
+    <section id="behavior" aria-labelledby="h-behavior">
+      <h2 id="h-behavior">Interaction</h2>
+      <label class="row"><span><strong>How much Dexter volunteers</strong><small>Limits unprompted patrols, remarks, check-ins and event reactions per hour.</small></span>
+        <select data-key="intensity"><option value="reserved">Reserved — once an hour at most</option><option value="standard">Standard</option><option value="attentive">Attentive</option></select></label>
+      <label class="row"><span><strong>Quiet mode</strong><small>No unsolicited remarks or check-ins. Direct actions still work.</small></span><input type="checkbox" data-key="quiet"></label>
+      <label class="row"><span><strong>Idle before resting</strong><small>Measured from interactions with Dexter only.</small></span>
+        <select data-key="idleSeconds" data-type="number"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+      <label class="row"><span><strong>React to sleep, wake and display changes</strong><small>Uses only the app's own lifecycle, never your activity.</small></span><input type="checkbox" data-key="eventReactions"></label>
+    </section>
+
+    <section id="animation" aria-labelledby="h-animation">
+      <h2 id="h-animation">Animation</h2>
+      <label class="row"><span><strong>Motion</strong><small>Reduced motion keeps distinct poses and still images, without patrols or video.</small></span>
+        <select data-key="motion"><option value="system">Follow macOS setting</option><option value="reduced">Reduced</option><option value="full">Full</option></select></label>
+    </section>
+
+    <section id="speech" aria-labelledby="h-speech">
+      <h2 id="h-speech">Sound &amp; speech</h2>
+      <label class="row"><span><strong>Tiny sounds</strong><small>A soft huff, generated locally.</small></span><input type="checkbox" data-key="sound"></label>
+      <label class="row"><span><strong>Speak aloud</strong><small>Optional. Off by default. Text bubbles always remain.</small></span><input type="checkbox" data-key="ttsEnabled"></label>
+      <div class="dependent" data-when="ttsEnabled">
+        <label class="row"><span><strong>Voice engine</strong><small>System uses voices already on this computer. Piper uses a program and voice you installed yourself.</small></span>
+          <select data-key="ttsEngine"><option value="system">System voice (on-device)</option><option value="piper">Piper (your installation)</option></select></label>
+        <label class="row" data-engine="system"><span><strong>System voice</strong><small id="voiceNote">On-device voices only.</small></span><select data-key="ttsVoice" id="voiceSelect"><option value="">Default</option></select></label>
+        <label class="row" data-engine="piper"><span><strong>Piper program</strong><small>Absolute path, for example /opt/homebrew/bin/piper</small></span><input type="text" data-key="piperPath" spellcheck="false" autocomplete="off"></label>
+        <label class="row" data-engine="piper"><span><strong>Piper voice model</strong><small>Absolute path to an .onnx voice. Nothing is downloaded.</small></span><input type="text" data-key="piperModel" spellcheck="false" autocomplete="off"></label>
+        <label class="row"><span><strong>Volume</strong><small><output data-for="ttsVolume"></output></small></span><input type="range" min="0" max="100" step="5" data-key="ttsVolume" data-type="percent"></label>
+        <label class="row"><span><strong>Rate</strong><small><output data-for="ttsRate"></output></small></span><input type="range" min="50" max="200" step="5" data-key="ttsRate" data-type="percent"></label>
+        <label class="row"><span><strong>Speak conversation replies</strong></span><input type="checkbox" data-key="ttsSpeakReplies"></label>
+        <label class="row"><span><strong>Speak remarks and check-ins</strong></span><input type="checkbox" data-key="ttsSpeakRemarks"></label>
+        <div class="actions"><button type="button" id="ttsTest">Test voice</button><button type="button" data-command="tts:stop">Stop speaking</button><button type="button" id="piperCheck" data-engine="piper">Check Piper</button></div>
+        <output id="ttsResult" class="result" role="status"></output>
+      </div>
+      <p class="note">Microphone input and speech recognition are not part of Dexter. He never listens.</p>
+    </section>
+
+    <section id="ai" aria-labelledby="h-ai">
+      <h2 id="h-ai">Local AI</h2>
+      <p class="note">Optional. When off, Dexter makes no network requests at all. When on, only this app contacts the endpoint below, only when you send a message or press Test. Nothing is downloaded and no model is installed for you.</p>
+      <label class="row"><span><strong>Enable Local AI</strong><small>Connect to an Ollama-compatible server you run.</small></span><input type="checkbox" data-key="aiEnabled"></label>
+      <div class="dependent" data-when="aiEnabled">
+        <label class="row"><span><strong>Endpoint</strong><small>Base URL, for example http://127.0.0.1:11434</small></span><input type="url" data-key="aiEndpoint" spellcheck="false" autocomplete="off" id="aiEndpoint"></label>
+        <label class="row"><span><strong>Allow a non-local endpoint</strong><small>Required for another computer on your network. Messages leave this Mac.</small></span><input type="checkbox" data-key="aiAllowRemote"></label>
+        <label class="row"><span><strong>Model</strong><small>Leave blank to use the first installed model.</small></span><input type="text" data-key="aiModel" spellcheck="false" autocomplete="off" list="modelList"><datalist id="modelList"></datalist></label>
+        <label class="row"><span><strong>Reply time limit</strong></span><select data-key="aiTimeoutSeconds" data-type="number"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select></label>
+        <label class="row"><span><strong>Messages sent as context</strong></span><select data-key="aiContextMessages" data-type="number"><option value="4">4</option><option value="8">8</option><option value="12">12</option><option value="20">20</option><option value="40">40</option></select></label>
+        <div class="actions"><button type="button" id="aiTest">Test connection</button></div>
+      </div>
+      <output id="aiResult" class="result" role="status"></output>
+    </section>
+
+    <section id="checkins" aria-labelledby="h-checkins">
+      <h2 id="h-checkins">Check-ins</h2>
+      <label class="row"><span><strong>Occasional check-ins</strong><small>Dexter asks a short question with a few answers. Answers are not saved.</small></span><input type="checkbox" data-key="checkinsEnabled"></label>
+      <div class="dependent" data-when="checkinsEnabled">
+        <label class="row"><span><strong>Roughly every</strong></span><select data-key="checkinMinutes" data-type="number"><option value="30">30 minutes</option><option value="60">hour</option><option value="90">90 minutes</option><option value="120">2 hours</option><option value="240">4 hours</option></select></label>
+        <label class="row"><span><strong>Quiet hours</strong><small>No check-ins from 22:00 to 08:00.</small></span><input type="checkbox" data-key="checkinQuietHours"></label>
+      </div>
+      <div class="actions"><button type="button" id="checkinNow">Show one now</button></div>
+      <output id="checkinResult" class="result" role="status"></output>
+    </section>
+
+    <section id="accessibility" aria-labelledby="h-accessibility">
+      <h2 id="h-accessibility">Accessibility</h2>
+      <label class="row"><span><strong>Bubble text size</strong></span><select data-key="bubbleTextSize"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label>
+      <label class="row"><span><strong>High-contrast bubbles</strong></span><input type="checkbox" data-key="highContrastBubble"></label>
+      <p class="note">Every Dexter action is available from the menu-bar icon and its keyboard-navigable menu. The conversation panel and this window are fully keyboard operable; Escape closes the conversation.</p>
+    </section>
+
+    <section id="privacy" aria-labelledby="h-privacy">
+      <h2 id="h-privacy">Privacy</h2>
+      <label class="row"><span><strong>Remember conversation on this computer</strong><small>Off: history disappears when Dexter quits. Turning this off deletes the saved file.</small></span><input type="checkbox" data-key="rememberConversation"></label>
+      <div class="actions"><button type="button" data-command="chat:clear">Clear conversation now</button></div>
+      <ul class="facts">
+        <li>No analytics, accounts, telemetry or crash uploads.</li>
+        <li>No keyboard, screen, clipboard, browser or app monitoring. Dexter sees only clicks on himself.</li>
+        <li>No microphone or camera. Permission requests are refused automatically.</li>
+        <li>Network: none, unless Local AI is enabled — then only to your endpoint.</li>
+        <li>Stored locally: these settings, and the conversation only if you enable it.</li>
+      </ul>
+    </section>
+
+    <section id="diagnostics" aria-labelledby="h-diagnostics">
+      <h2 id="h-diagnostics">Diagnostics</h2>
+      <div class="actions"><button type="button" id="audit">Run self-audit</button><button type="button" id="report">Show report</button><button type="button" id="export">Export report…</button></div>
+      <table id="auditTable" class="audit" hidden><caption>Self-audit</caption><thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead><tbody></tbody></table>
+      <pre id="reportView" class="report" hidden tabindex="0" aria-label="Diagnostic report"></pre>
+      <output id="diagResult" class="result" role="status"></output>
+    </section>
+
+    <section id="reset" aria-labelledby="h-reset">
+      <h2 id="h-reset">Reset &amp; recovery</h2>
+      <p class="note">If Dexter is invisible or ignores clicks: use the menu-bar icon → Restore Dexter, or open the app again from Applications. Click-through mode always turns off when Dexter restarts.</p>
+      <div class="actions"><button type="button" data-command="window:restore">Restore Dexter</button><button type="button" data-command="window:reset-position">Reset position</button><button type="button" id="resetAll" class="danger">Reset all settings…</button></div>
+    </section>
+  </main>
+  <script src="./settings.js"></script>
+</body>
+</html>

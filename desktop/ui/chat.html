@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="color-scheme" content="dark">
+  <title>Talk to Dexter</title>
+  <link rel="stylesheet" href="./panel.css">
+</head>
+<body class="chat">
+  <main class="chat-panel" aria-labelledby="chatTitle">
+    <header class="chat-head">
+      <div><small>DEXTER · CONVERSATION</small><h1 id="chatTitle">State your business.</h1></div>
+      <span id="aiStatus" class="status-pill" role="status">Local replies</span>
+      <button type="button" id="closeChat" class="icon-button" aria-label="Close conversation (Escape)" title="Close (Esc)">×</button>
+    </header>
+    <ol id="log" class="chat-log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation history"></ol>
+    <p id="notice" class="chat-notice" role="alert" hidden></p>
+    <form id="composer" class="composer">
+      <label for="input" class="visually-hidden">Message to Dexter</label>
+      <textarea id="input" rows="2" maxlength="4000" placeholder="Say something. Or /help." autocomplete="off" spellcheck="false"></textarea>
+      <div class="composer-actions">
+        <button type="button" id="stop" hidden>Stop</button>
+        <button type="submit" id="send" class="primary">Send</button>
+      </div>
+    </form>
+    <footer class="chat-foot">
+      <span id="memory">Not remembered after quitting.</span>
+      <button type="button" id="clear" class="link">Clear</button>
+      <button type="button" id="aiSettings" class="link">AI settings</button>
+    </footer>
+  </main>
+  <script src="./chat.js"></script>
+</body>
+</html>
