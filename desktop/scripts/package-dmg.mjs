@@ -72,7 +72,7 @@ try {
   assert(sha(path.join(installedApp,'Contents','Resources','app.asar'))===sha(sourceAsar),
     'Copied app changed its packaged payload');
   const exe = path.join(installedApp,'Contents','MacOS','Dexter Desk Familiar');
-  execFileSync(exe,[],{env:{...process.env,DEXTER_DESKTOP_SMOKE:'1'},
+  execFileSync(exe,[],{env:{...process.env,DEXTER_DESKTOP_SMOKE:'1',DEXTER_DESKTOP_SMOKE_REQUIRE_VIDEO:'1'},
     stdio:'inherit',timeout:60000});
   console.log('Copied-out DMG application runtime smoke: PASS');
 } finally {
