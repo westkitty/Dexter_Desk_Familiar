@@ -204,6 +204,11 @@ async function runSmokeTest() {
       pet.dispatchEvent(new PointerEvent('pointerup',{...pokeOptions,screenX:157,screenY:162}));
       document.querySelector('[data-action="treat"]').click();
       const treated=pet.dataset.state==='eating';
+      // CI may request reduced motion. The ordinary app must honor that setting,
+      // but this explicit animation smoke needs to enable motion in its own
+      // disposable profile before asserting that approved WebM actually decodes.
+      const motion=document.getElementById('motionToggle');
+      motion.checked=false;motion.dispatchEvent(new Event('change',{bubbles:true}));
       mode.checked=true;mode.dispatchEvent(new Event('change',{bubbles:true}));
       const celEnabled=pet.dataset.artMode==='cel';
       const video=document.getElementById('celVideo');
