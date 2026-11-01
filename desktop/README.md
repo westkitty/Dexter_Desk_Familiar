@@ -22,6 +22,14 @@ Build a standalone unsigned development bundle:
 npm run package:mac
 ```
 
+Build a drag-to-Applications **unsigned DMG** (run in `desktop/`):
+
+```sh
+npm run package:dmg
+```
+
+This builds the app, creates `desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg`, mounts the read-only image, verifies its app payload and `Applications` shortcut, copies the app to an isolated install-test directory, and runs the real Electron smoke before writing a matching `.dmg.sha256` file. The builder refuses to overwrite an existing DMG or checksum; archive earlier outputs before rebuilding. **It does not sign, notarize, or install the app.**
+
 Use the app from `desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app`. Do not assume it is Gatekeeper approved. The source package locks Electron 45.2.1 and @electron/packager 20.3.0. The produced bundle has a native Dexter icon, but remains unsigned; double-click installation can be rejected by Gatekeeper.
 
 ## Verified macOS alpha evidence (October 31, 2026)
@@ -46,7 +54,9 @@ Core files from the current PWA are copied to an **ignored** staging folder; onl
 
 Draft [PR #9](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) runs the **Dexter desktop macOS alpha checks** workflow. Once its test job passes, it uploads a short-lived GitHub Actions artifact named `Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-*` (14-day retention). A GitHub sign-in may be necessary.
 
-This is an **Actions archive** containing an inner `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip` and its matching `.sha256` checksum, which must be checked *before* extracting the inner ZIP. For exact download, install, Gatekeeper and mouse-acceptance steps, read [MACBOOK_QA.md](./MACBOOK_QA.md).
+For a drag-and-drop installation, use the separate `Dexter-Desktop-macOS-arm64-unsigned-DMG-pr9-*` workflow artifact when its checks succeed. The Actions archive contains the **actual** `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg` plus a matching `.dmg.sha256` checksum. Open the DMG and drag **Dexter Desk Familiar.app** to **Applications**. A ZIP-only legacy alpha artifact is also maintained separately.
+
+For exact download, checksum, Gatekeeper, physical mouse and accessibility checks, read [MACBOOK_QA.md](./MACBOOK_QA.md).
 
 The earlier Big Mac local build, SHA-256 `35815d9dc90a5b9c294c278b983902cc6c0c92655ba05c2b7b79ccaef57cd263`, predates transparent-pixel hit testing. **Do not treat that hash as the expected checksum for a newer Actions artifact.** Every review ZIP has its own matching checksum.
 
