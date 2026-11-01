@@ -3,6 +3,16 @@
   'use strict';
   const MASK_SIZE = 64;
   const MIN_ALPHA = 28;
+
+  // Normalized nose regions (uMin, uMax, vMin, vMax in [0, 1]) for each art mode.
+  // When options.flipped is true, the horizontal coordinate is mirrored (1 - u).
+  const NOSE_REGIONS = Object.freeze({
+    pixel: {uMin: 0.25, uMax: 0.36, vMin: 0.31, vMax: 0.41},
+    cel: {uMin: 0.31, uMax: 0.41, vMin: 0.31, vMax: 0.41},
+    atlas: {uMin: 0.27, uMax: 0.39, vMin: 0.31, vMax: 0.43},
+    default: {uMin: 0.26, uMax: 0.40, vMin: 0.31, vMax: 0.42}
+  });
+
   function containedRect(sourceWidth, sourceHeight, width = MASK_SIZE, height = MASK_SIZE) {
     if (![sourceWidth, sourceHeight, width, height].every(n => Number.isFinite(n) && n > 0)) return null;
     const scale = Math.min(width / sourceWidth, height / sourceHeight);
@@ -30,7 +40,24 @@
     const alpha = mask.data[(yIndex * mask.width + xIndex) * 4 + 3];
     return alpha >= (Number.isFinite(options.threshold) ? options.threshold : MIN_ALPHA);
   }
-  const api = Object.freeze({MASK_SIZE, MIN_ALPHA, containedRect, within, alphaAt});
+
+  function isNoseHit(artMode, bounds, x, y, options = {}) {
+    if (!within(bounds, x, y)) return false;
+    const region = NOSE_REGIONS[artMode] || NOSE_REGIONS.default;
+    const u = (x - bounds.left) / bounds.width;
+    const v = (y - bounds.top) / bounds.height;
+    const uSprite = options.flipped ? (1 - u) : u;
+    if (uSprite < region.uMin || uSprite > region.uMax || v < region.vMin || v > region.vMax) {
+      return false;
+    }
+    if (options.mask) {
+      const isOpaque = alphaAt(options.mask, bounds, x, y, options);
+      if (isOpaque === false) return false;
+    }
+    return true;
+  }
+
+  const api = Object.freeze({MASK_SIZE, MIN_ALPHA, NOSE_REGIONS, containedRect, within, alphaAt, isNoseHit});
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.DexterHitTest = api;
 })(typeof window !== 'undefined' ? window : null);

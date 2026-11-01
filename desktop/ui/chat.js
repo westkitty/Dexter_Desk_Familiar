@@ -12,12 +12,24 @@
     let li = nodes.get(m.id);
     if (!li) {
       li = document.createElement('li');
-      li.innerHTML = '<span class="who"></span><p class="body"></p><span class="meta"></span>';
+      li.innerHTML = '<span class="who"></span><p class="body"></p><div class="citations"></div><span class="meta"></span>';
       nodes.set(m.id, li); log.appendChild(li);
     }
     li.className = 'msg msg-' + m.role + ' is-' + m.status;
     li.querySelector('.who').textContent = LABEL[m.role] || 'Dexter';
     li.querySelector('.body').textContent = m.content || (m.status === 'streaming' ? '…' : '');
+    const citeDiv = li.querySelector('.citations');
+    if (citeDiv) {
+      citeDiv.replaceChildren();
+      if (Array.isArray(m.citations) && m.citations.length) {
+        for (const c of m.citations) {
+          const tag = document.createElement('span');
+          tag.className = 'citation-tag';
+          tag.textContent = c;
+          citeDiv.appendChild(tag);
+        }
+      }
+    }
     const meta = {cancelled: 'Stopped', error: 'Failed', truncated: 'Truncated', local: m.role === 'assistant' ? 'No model · local reply' : ''}[m.status] || '';
     li.querySelector('.meta').textContent = meta;
     li.setAttribute('aria-busy', m.status === 'streaming' ? 'true' : 'false');
@@ -56,7 +68,7 @@
       const li = nodes.get(event.id);
       if (li) { const body = li.querySelector('.body'); body.textContent = (body.textContent === '…' ? '' : body.textContent) + event.text; log.scrollTop = log.scrollHeight; }
     } else if (event.type === 'done') {
-      render({id: event.id, role: 'assistant', status: event.status, content: event.text});
+      render({id: event.id, role: 'assistant', status: event.status, content: event.text, citations: event.citations});
       setBusy(null);
       if (event.detail && event.status !== 'complete') showNotice(event.detail);
     } else if (event.type === 'reset') reset(event.snapshot);

@@ -42,8 +42,27 @@
     $('cacheNote').textContent = 'Saves synthesized audio in Dexter\'s own folder (' + data.ttsCacheStats.files + ' files). Turning it off deletes it.';
     const sess = data.session;
     $('sessionResult').textContent = sess && sess.active ? 'Session running: ' + Math.round(sess.remainingMs / 60000) + ' min left' + (sess.paused ? ' (paused)' : '') + '.' : 'No session running.';
+    const isDexdictate = s.speechInputProvider === 'dexdictate';
+    if ($('whisperSection')) $('whisperSection').hidden = isDexdictate;
+    if ($('dexdictateSection')) $('dexdictateSection').hidden = !isDexdictate;
+    if (isDexdictate) refreshDexdictate();
+    if (data.ttsCacheStats && $('cacheStatsView')) {
+      const hits = data.ttsCacheStats.hits || 0;
+      const misses = data.ttsCacheStats.misses || 0;
+      const kb = Math.round((data.ttsCacheStats.bytes || 0) / 1024);
+      $('cacheStatsView').textContent = 'Cache status: ' + (data.ttsCacheStats.files || 0) + ' files (' + kb + ' KB). Cache hits: ' + hits + ', misses: ' + misses + '.';
+    }
+    if ($('devStatusCard')) {
+      $('devStatusCard').hidden = !s.developerTools;
+      $('devLockStatus').textContent = data.devUnlocked
+        ? 'Status: UNLOCKED. Developer menu is active in right-click menu.'
+        : 'Status: LOCKED. Left-click Dexter\'s nose 5 times in 2 seconds to unlock.';
+      $('devRelockBtn').hidden = !data.devUnlocked;
+    }
     renderNotes(data.notes || []);
+    renderDocs(data.documents || []);
     renderCustom(s.customCheckins || []);
+    refreshQuestions();
   }
   let savedTimer = null;
   function saved(text) {
@@ -188,6 +207,185 @@
   $('voicePick').addEventListener('change', () => { if ($('voicePick').value) void set('piperModel', $('voicePick').value); });
   document.querySelector('[data-key="piperVoicesDir"]').addEventListener('change', () => setTimeout(fillPiperVoices, 200));
   $('sttCheck').addEventListener('click', async () => { const r = await ui.invoke('stt:check'); $('sttResult').textContent = r.ok ? 'whisper.cpp program and model found.' : r.problems.join(' '); });
+  // ---- Presets
+  $('aiPreset')?.addEventListener('change', () => {
+    const val = $('aiPreset').value;
+    if (val === 'this_mac') {
+      void set('aiProvider', 'ollama');
+      void set('aiEndpoint', 'http://127.0.0.1:11434');
+      void set('aiAllowRemote', false);
+    } else if (val === 'tunnel') {
+      void set('aiProvider', 'openai_compatible');
+      void set('aiEndpoint', 'http://127.0.0.1:11435/v1');
+      void set('aiAllowRemote', false);
+    } else if (val === 'remote') {
+      const host = prompt('Enter Big Mac network IP or hostname (e.g. 192.168.1.50 or bigmac.local):');
+      if (host) {
+        void set('aiProvider', 'ollama');
+        void set('aiEndpoint', 'http://' + host.trim() + ':11434');
+        void set('aiAllowRemote', true);
+      }
+    }
+  });
+
+  // ---- Piper Probe & Kokoro
+  $('piperProbeBtn')?.addEventListener('click', async () => {
+    $('piperProbeResult').textContent = 'Probing Piper installation…';
+    const r = await ui.invoke('piper:probe');
+    let msg = '';
+    if (r.cli?.detected) {
+      msg += 'CLI: ' + (r.cli.version || 'detected') + ' (flags: ' + (r.cli.flags?.join(', ') || 'standard') + '). ';
+    } else {
+      msg += 'CLI: Not found or not executable. ';
+    }
+    if (r.model?.valid) {
+      msg += 'Voice: valid .onnx (config: ' + (r.model.configFound ? 'found' : 'missing') + ', speakers: ' + r.model.numSpeakers + ').';
+    } else {
+      msg += 'Voice: ' + (r.model?.reason || 'no valid voice selected') + '.';
+    }
+    $('piperProbeResult').textContent = msg;
+  });
+
+  $('kokoroReportBtn')?.addEventListener('click', async () => {
+    const r = await ui.invoke('kokoro:check');
+    const view = $('kokoroReportView');
+    view.hidden = !view.hidden;
+    if (!view.hidden) {
+      view.textContent = JSON.stringify(r, null, 2);
+    }
+  });
+
+  // ---- TTS Cache Clear
+  $('ttsCacheClearBtn')?.addEventListener('click', async () => {
+    if (confirm('Clear all cached speech audio files?')) {
+      await ui.invoke('tts:cache-clear');
+      render(await ui.invoke('settings:get'));
+      saved('Speech cache cleared.');
+    }
+  });
+
+  // ---- DexDictate
+  async function refreshDexdictate() {
+    const r = await ui.invoke('dexdictate:check');
+    $('dexdictateStatusLabel').textContent = r.label;
+    $('dexdictateGuidance').textContent = r.guidance;
+    $('dexdictateDetail').textContent = r.blockedReason;
+  }
+  $('dexdictateRefresh')?.addEventListener('click', refreshDexdictate);
+
+  // ---- Project Memory Documents
+  function renderDocs(list) {
+    const ul = $('docList');
+    if (!ul) return;
+    ul.replaceChildren();
+    for (const d of list) {
+      const li = document.createElement('li');
+      const span = document.createElement('span');
+      const kb = Math.round(d.sizeBytes / 1024);
+      span.textContent = d.name + ' (' + kb + ' KB, ' + d.chunkCount + ' sections) ' + (d.enabled ? '— Active' : '— Disabled');
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.textContent = d.enabled ? 'Disable' : 'Enable';
+      toggle.addEventListener('click', async () => {
+        await ui.invoke('docs:toggle', {id: d.id, enabled: !d.enabled});
+        render(await ui.invoke('settings:get'));
+      });
+      const prev = document.createElement('button');
+      prev.type = 'button';
+      prev.textContent = 'Preview';
+      prev.addEventListener('click', async () => {
+        const full = await ui.invoke('docs:preview', {id: d.id});
+        const p = $('docPreview');
+        p.hidden = !p.hidden;
+        if (!p.hidden) {
+          p.textContent = full ? JSON.stringify({name: full.name, hash: full.hash, chunks: full.chunks}, null, 2) : 'Document not found';
+        }
+      });
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.textContent = 'Delete';
+      del.className = 'danger';
+      del.addEventListener('click', async () => {
+        await ui.invoke('docs:delete', {id: d.id});
+        render(await ui.invoke('settings:get'));
+      });
+      li.append(span, toggle, prev, del);
+      ul.appendChild(li);
+    }
+    if (!list.length) {
+      const li = document.createElement('li');
+      li.textContent = 'No project documents imported yet.';
+      ul.appendChild(li);
+    }
+  }
+
+  $('docImportFile')?.addEventListener('click', async () => {
+    const r = await ui.invoke('docs:import');
+    if (r.imported) {
+      render(await ui.invoke('settings:get'));
+      saved('Document imported: ' + r.document.name);
+    } else if (r.error) {
+      alert('Import failed: ' + r.error);
+    }
+  });
+
+  $('docClearAll')?.addEventListener('click', async () => {
+    if (confirm('Delete all imported project documents?')) {
+      await ui.invoke('docs:clear');
+      render(await ui.invoke('settings:get'));
+      saved('All documents removed.');
+    }
+  });
+
+  // ---- Questions Library
+  let qTimer = null;
+  async function refreshQuestions() {
+    const listEl = $('questionsList');
+    if (!listEl) return;
+    const search = $('questionSearch')?.value.trim() || '';
+    const category = $('categoryFilter')?.value || '';
+    const items = await ui.invoke('questions:list', {search, category});
+    listEl.replaceChildren();
+    for (const q of (items || []).slice(0, 30)) {
+      const li = document.createElement('li');
+      const span = document.createElement('span');
+      span.textContent = '[' + q.category + '] ' + q.text + ' (' + q.choices.length + ' choices)';
+      li.appendChild(span);
+      listEl.appendChild(li);
+    }
+    if (!items || !items.length) {
+      const li = document.createElement('li');
+      li.textContent = 'No questions match the filter.';
+      listEl.appendChild(li);
+    }
+  }
+
+  $('questionSearch')?.addEventListener('input', () => {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(refreshQuestions, 200);
+  });
+  $('categoryFilter')?.addEventListener('change', refreshQuestions);
+
+  $('exportQuestions')?.addEventListener('click', async () => {
+    const r = await ui.invoke('questions:export');
+    if (r.saved) saved('Questions exported.');
+  });
+
+  $('importQuestions')?.addEventListener('click', async () => {
+    const r = await ui.invoke('questions:import');
+    if (r.imported > 0) {
+      saved('Imported ' + r.imported + ' questions.');
+      refreshQuestions();
+    }
+  });
+
+  // ---- Developer Tools Relock
+  $('devRelockBtn')?.addEventListener('click', async () => {
+    await ui.invoke('dev:lock');
+    render(await ui.invoke('settings:get'));
+    saved('Developer tools locked.');
+  });
+
   ui.on('settings:changed', render);
   ui.on('settings:section', id => { const el = document.getElementById(String(id)); if (el) { el.scrollIntoView(); el.querySelector('input,select,button')?.focus(); } });
   ui.invoke('settings:get').then(data => { render(data); fillVoices(); void fillPiperVoices(); });

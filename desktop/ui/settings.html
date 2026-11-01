@@ -57,6 +57,8 @@
       <label class="row"><span><strong>Always on top</strong><small>Float above other windows.</small></span><input type="checkbox" data-key="alwaysOnTop"></label>
       <label class="row"><span><strong>Click through empty space</strong><small>Only Dexter's visible pixels catch the mouse.</small></span><input type="checkbox" data-key="preciseHitTest"></label>
       <label class="row"><span><strong>Never take keyboard focus</strong><small>Clicking Dexter will not pull typing away from your current app. Use this window or the conversation panel for the keyboard.</small></span><input type="checkbox" data-key="passiveFocus"></label>
+      <label class="row"><span><strong>Pin Dexter in place</strong><small>When checked, Dexter stays where you place him. When unchecked, he may occasionally roam within bounds.</small></span><input type="checkbox" data-key="pinned"></label>
+      <label class="row"><span><strong>Allow autonomous roaming</strong><small>Occasional gentle movement across the desktop when unpinned.</small></span><input type="checkbox" data-key="roamingEnabled"></label>
       <label class="row" data-mac-only><span><strong>Show in Dock</strong><small>When off, Dexter lives only in the menu bar.</small></span><input type="checkbox" data-key="showInDock"></label>
       <label class="row"><span><strong>Open at login</strong><small>Off by default.</small></span><input type="checkbox" data-key="launchAtLogin" id="launchAtLogin"></label>
       <div class="actions"><button type="button" data-command="window:restore">Restore Dexter</button><button type="button" data-command="window:reset-position">Reset position</button></div>
@@ -94,7 +96,24 @@
         <label class="row" data-engine="piper"><span><strong>Piper voices folder</strong><small>Optional. A folder of .onnx voices to pick from.</small></span><input type="text" data-key="piperVoicesDir" spellcheck="false" autocomplete="off"></label>
         <label class="row" data-engine="piper"><span><strong>Pick a voice from the folder</strong></span><select id="voicePick"><option value="">—</option></select></label>
         <label class="row" data-engine="piper"><span><strong>Piper voice model</strong><small>Absolute path to an .onnx voice. Nothing is downloaded.</small></span><input type="text" data-key="piperModel" spellcheck="false" autocomplete="off"></label>
+        <div data-engine="piper" class="card">
+          <h3>Piper guided setup &amp; validation</h3>
+          <div class="actions">
+            <button type="button" id="piperProbeBtn">Probe Piper CLI &amp; Voice</button>
+            <button type="button" id="kokoroReportBtn">View Kokoro experiment report</button>
+          </div>
+          <output id="piperProbeResult" class="result" role="status"></output>
+          <pre id="kokoroReportView" class="report" hidden></pre>
+        </div>
         <label class="row" data-engine="piper"><span><strong>Cache spoken lines</strong><small id="cacheNote">Saves synthesized audio in Dexter's own folder. Turning it off deletes it.</small></span><input type="checkbox" data-key="ttsCache"></label>
+        <div class="dependent" data-when="ttsCache" data-engine="piper">
+          <p id="cacheStatsView" class="note"></p>
+          <label class="row"><span><strong>Cache conversation replies</strong></span><input type="checkbox" data-key="ttsCacheReplies"></label>
+          <label class="row"><span><strong>Cache remarks and events</strong></span><input type="checkbox" data-key="ttsCacheRemarks"></label>
+          <label class="row"><span><strong>Cache check-in questions</strong></span><input type="checkbox" data-key="ttsCacheCheckins"></label>
+          <label class="row"><span><strong>Never cache sensitive messages</strong></span><input type="checkbox" data-key="ttsCacheNeverSensitive"></label>
+          <div class="actions"><button type="button" id="ttsCacheClearBtn" class="danger">Clear speech cache</button></div>
+        </div>
         <label class="row"><span><strong>Volume</strong><small><output data-for="ttsVolume"></output></small></span><input type="range" min="0" max="100" step="5" data-key="ttsVolume" data-type="percent"></label>
         <label class="row"><span><strong>Rate</strong><small><output data-for="ttsRate"></output></small></span><input type="range" min="50" max="200" step="5" data-key="ttsRate" data-type="percent"></label>
         <label class="row"><span><strong>Speak conversation replies</strong></span><input type="checkbox" data-key="ttsSpeakReplies"></label>
@@ -103,13 +122,27 @@
         <output id="ttsResult" class="result" role="status"></output>
       </div>
       <h3>Speech input (microphone)</h3>
-      <p class="note">Optional and off. When on, a microphone button appears in the conversation panel. Dexter records only between your two clicks (up to 30 seconds), transcribes on this computer with a whisper.cpp program you installed, deletes the audio, and puts the text in the box for you to review. He never listens otherwise. macOS will ask for microphone permission the first time.</p>
+      <p class="note">Optional and off. You can use push-to-talk with local whisper.cpp, or dictate externally with DexDictate.</p>
       <label class="row"><span><strong>Enable speech input</strong></span><input type="checkbox" data-key="sttEnabled"></label>
       <div class="dependent" data-when="sttEnabled">
-        <label class="row"><span><strong>whisper.cpp program</strong><small>Absolute path, for example /opt/homebrew/bin/whisper-cli</small></span><input type="text" data-key="whisperPath" spellcheck="false" autocomplete="off"></label>
-        <label class="row"><span><strong>Whisper model</strong><small>Absolute path to a .bin or .gguf model.</small></span><input type="text" data-key="whisperModel" spellcheck="false" autocomplete="off"></label>
-        <div class="actions"><button type="button" id="sttCheck">Check speech input</button></div>
-        <output id="sttResult" class="result" role="status"></output>
+        <label class="row"><span><strong>Speech input provider</strong><small>Choose how you want to dictate.</small></span>
+          <select data-key="speechInputProvider" id="speechInputProvider">
+            <option value="whisper">whisper.cpp (local push-to-talk)</option>
+            <option value="dexdictate">DexDictate (macOS system dictation)</option>
+          </select>
+        </label>
+        <div id="whisperSection">
+          <label class="row"><span><strong>whisper.cpp program</strong><small>Absolute path, for example /opt/homebrew/bin/whisper-cli</small></span><input type="text" data-key="whisperPath" spellcheck="false" autocomplete="off"></label>
+          <label class="row"><span><strong>Whisper model</strong><small>Absolute path to a .bin or .gguf model.</small></span><input type="text" data-key="whisperModel" spellcheck="false" autocomplete="off"></label>
+          <div class="actions"><button type="button" id="sttCheck">Check speech input</button></div>
+          <output id="sttResult" class="result" role="status"></output>
+        </div>
+        <div id="dexdictateSection" hidden class="card">
+          <h3 id="dexdictateStatusLabel">Checking DexDictate…</h3>
+          <p id="dexdictateGuidance" class="note"></p>
+          <p class="note"><strong>Interoperability status:</strong> <span id="dexdictateDetail"></span></p>
+          <div class="actions"><button type="button" id="dexdictateRefresh">Refresh DexDictate status</button></div>
+        </div>
       </div>
     </section>
 
@@ -125,8 +158,24 @@
     <section id="ai" aria-labelledby="h-ai">
       <h2 id="h-ai">Local AI</h2>
       <p class="note">Optional. When off, Dexter makes no network requests at all. When on, only this app contacts the endpoint below, only when you send a message or press Test. Nothing is downloaded and no model is installed for you.</p>
-      <label class="row"><span><strong>Enable Local AI</strong><small>Connect to an Ollama-compatible server you run.</small></span><input type="checkbox" data-key="aiEnabled"></label>
+      <label class="row"><span><strong>Enable Local AI</strong><small>Connect to an Ollama or OpenAI-compatible server you run.</small></span><input type="checkbox" data-key="aiEnabled"></label>
       <div class="dependent" data-when="aiEnabled">
+        <label class="row"><span><strong>Provider protocol</strong></span>
+          <select data-key="aiProvider" id="aiProvider">
+            <option value="ollama">Ollama native (/api/tags, /api/chat)</option>
+            <option value="openai_compatible">OpenAI-compatible local / tunnel (/v1/models, /v1/chat/completions)</option>
+            <option value="hermes_unverified">Hermes gateway (unverified protocol)</option>
+          </select>
+        </label>
+        <label class="row"><span><strong>Connection preset</strong><small>Quick configuration for Big Mac inference.</small></span>
+          <select id="aiPreset">
+            <option value="">Custom setup…</option>
+            <option value="this_mac">On this Mac (127.0.0.1:11434)</option>
+            <option value="tunnel">Big Mac through local tunnel (127.0.0.1:11435/v1)</option>
+            <option value="remote">Big Mac over private network (LAN IP/host)</option>
+          </select>
+        </label>
+        <p class="note" id="tunnelNote">127.0.0.1 addresses target this MacBook unless an SSH port forward or tunnel is actively running.</p>
         <label class="row"><span><strong>Endpoint</strong><small>Base URL, for example http://127.0.0.1:11434</small></span><input type="url" data-key="aiEndpoint" spellcheck="false" autocomplete="off" id="aiEndpoint"></label>
         <label class="row"><span><strong>Allow a non-local endpoint</strong><small>Required for another computer on your network. Messages leave this Mac.</small></span><input type="checkbox" data-key="aiAllowRemote"></label>
         <label class="row"><span><strong>Model</strong><small>Leave blank to use the first installed model.</small></span><input type="text" data-key="aiModel" spellcheck="false" autocomplete="off" list="modelList"><datalist id="modelList"></datalist></label>
@@ -143,6 +192,17 @@
       <label class="row"><span><strong>Use my notes in AI context</strong></span><input type="checkbox" data-key="notesInContext"></label>
       <div class="actions"><input type="text" id="noteText" aria-label="New note" placeholder="Something worth remembering" maxlength="280"><button type="button" id="noteAdd">Add note</button><button type="button" id="notesClear" class="danger">Delete all notes</button></div>
       <ul id="noteList" class="editor-list" aria-label="Saved notes"></ul>
+
+      <h3>Project documentation memory</h3>
+      <p class="note">Import local Markdown (.md, .txt) files into private storage. When enabled, Dexter searches relevant sections (up to 1200 characters) to assist in answers, with citations.</p>
+      <label class="row"><span><strong>Use project documents in AI context</strong></span><input type="checkbox" data-key="useProjectMemory"></label>
+      <label class="row"><span><strong>Allow project documents on non-local endpoints</strong><small>Extra privacy gate: required if your Local AI endpoint is not on this Mac.</small></span><input type="checkbox" data-key="allowProjectMemoryRemote"></label>
+      <div class="actions">
+        <button type="button" id="docImportFile">Import Markdown file…</button>
+        <button type="button" id="docClearAll" class="danger">Remove all documents</button>
+      </div>
+      <ul id="docList" class="editor-list" aria-label="Imported project documents"></ul>
+      <pre id="docPreview" class="report" hidden></pre>
     </section>
 
     <section id="checkins" aria-labelledby="h-checkins">
@@ -155,7 +215,30 @@
       <label class="row"><span><strong>Questions to ask</strong></span><select data-key="checkinSource"><option value="mixed">Dexter's and mine</option><option value="builtin">Dexter's only</option><option value="custom">Mine only</option></select></label>
       <div class="actions"><button type="button" id="checkinNow">Show one now</button></div>
       <output id="checkinResult" class="result" role="status"></output>
-      <h3>My questions</h3>
+
+      <h3>Questions library (80+ questions)</h3>
+      <p class="note">Explore, filter, export and import the built-in library across 8 categories in Dexter's voice.</p>
+      <div class="pair">
+        <input type="search" id="questionSearch" placeholder="Filter questions by keyword…" aria-label="Search questions">
+        <select id="categoryFilter" aria-label="Filter by category">
+          <option value="">All categories</option>
+          <option value="focus">Focus</option>
+          <option value="progress">Progress</option>
+          <option value="decisions">Decisions</option>
+          <option value="breaks">Breaks</option>
+          <option value="learning">Learning</option>
+          <option value="reflection">Reflection</option>
+          <option value="play">Play</option>
+          <option value="opinions">Opinions</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button type="button" id="exportQuestions">Export questions…</button>
+        <button type="button" id="importQuestions">Import questions…</button>
+      </div>
+      <ul id="questionsList" class="editor-list" aria-label="Questions library"></ul>
+
+      <h3>My custom questions</h3>
       <ul id="customList" class="editor-list" aria-label="Your check-in questions"></ul>
       <form id="customForm" class="editor" aria-label="Add or edit a question">
         <label class="row"><span><strong>Question</strong></span><input type="text" id="cq-text" maxlength="160" required></label>
@@ -212,7 +295,13 @@
 
     <section id="developer" aria-labelledby="h-developer">
       <h2 id="h-developer">Developer</h2>
-      <label class="row"><span><strong>Developer tools</strong><small>Adds a Developer menu, also opened by poking Dexter five times quickly: force states, trigger check-ins and reactions, tricks, typewriter speed.</small></span><input type="checkbox" data-key="developerTools"></label>
+      <label class="row"><span><strong>Enable Developer features</strong><small>When enabled, developer menus unlock only after 5 quick left-clicks directly on Dexter's nose. Dragging or tapping the body resets the sequence.</small></span><input type="checkbox" data-key="developerTools"></label>
+      <div class="card" id="devStatusCard">
+        <p id="devLockStatus" class="note"></p>
+        <div class="actions">
+          <button type="button" id="devRelockBtn">Lock Developer tools</button>
+        </div>
+      </div>
       <div class="actions"><button type="button" data-command="inspector:open">Open Inspector</button><button type="button" data-command="demo:play">Play demonstration</button></div>
     </section>
 

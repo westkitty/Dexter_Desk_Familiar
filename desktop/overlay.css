@@ -46,6 +46,9 @@ body.desktop-bubble-open .thought-wrap {opacity:0 !important;}
   box-shadow:0 4px 14px #000a; font:500 11px/1.3 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   animation:desktop-bubble-in .16s ease-out;
 }
+body.desktop-bubble-flip .desktop-bubble {
+  top:auto; bottom:6px; box-shadow:0 -4px 14px #000a;
+}
 .desktop-bubble[hidden] {display:none;}
 .desktop-bubble-text {margin:0; white-space:pre-wrap; overflow-wrap:anywhere;}
 .desktop-bubble-choices {display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}

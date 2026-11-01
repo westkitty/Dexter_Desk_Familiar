@@ -19,10 +19,12 @@ contextBridge.exposeInMainWorld('dexterDesktop', Object.freeze({
   endDrag() { ipcRenderer.send('dexter:drag-end'); },
   status(state, napping) { if (typeof state === 'string') ipcRenderer.send('dexter:status', {state: state.slice(0, 20), napping: napping === true}); },
   answer(id, path) {
-    if (typeof id === 'string' && Array.isArray(path) && path.length >= 1 && path.length <= 2 && path.every(Number.isInteger))
+    if (typeof id === 'string' && Array.isArray(path) && path.length >= 1 && path.length <= 5 && path.every(Number.isInteger))
       ipcRenderer.send('dexter:checkin-answer', {id: id.slice(0, 40), path: path.slice()});
   },
   dev() { ipcRenderer.send('dexter:dev'); },
+  devUnlock() { ipcRenderer.send('dexter:dev-unlock'); },
+  devLock() { ipcRenderer.send('dexter:dev-lock'); },
   dismissBubble() { ipcRenderer.send('dexter:bubble-dismissed'); },
   openChat() { ipcRenderer.send('dexter:open-chat'); },
   speechState(state, detail) { if (typeof state === 'string') ipcRenderer.send('dexter:speech-state', {state, detail: typeof detail === 'string' ? detail.slice(0, 120) : ''}); },

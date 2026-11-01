@@ -243,3 +243,53 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
     - Its cosmetic CSS (morning/day/evening hue tints, softened floor rings, eating glow, dimmer sleeping ring) was not applied, because it would change the live site's look without review and require an offline-cache bump. It remains recoverable from the archive tag.
   - **Preserved:** commit `5478a36` is recorded in `main`'s history by an "ours" merge that takes no changes, so deleting the branch loses nothing. (This session's git proxy refuses tag pushes, so an archive tag was not possible.)
 - **After merge:** the excess branches are deleted, leaving `main` as the only branch.
+
+## 2026-11-01 — Desktop integrations and ergonomics implementation (Workstreams A–F)
+
+- **Authority:** Codex implementation handoff — Dexter Desk Familiar desktop (integrations & ergonomics). Target: `westkitty/Dexter_Desk_Familiar`, `desktop/` product.
+- **Branch:** `work/desktop-integrations-ergonomics`, created from verified `main` @ `376a902`.
+- **Private context seed protection:** `DEXTER_PROJECT_CONTEXT_SEED_2026-11-01.md` was never uploaded, required, or committed; all testing used synthetic test fixtures.
+- **Implemented Workstreams:**
+  - **Workstream A (Unified Local AI & Big Mac inference):**
+    - Created `desktop/core/ai-providers.cjs` supporting Ollama native NDJSON (`/api/tags`, `/api/chat`) and OpenAI-compatible SSE streaming (`/v1/models`, `/v1/chat/completions`). Backward compatible via `desktop/core/ollama.cjs`.
+    - Added `AI_PROVIDERS` schema and `{allowPath}` support in `desktop/window-state.cjs` (allows clean `/v1` paths without credentials).
+    - Added Settings connection presets: On this Mac, Big Mac local tunnel (`127.0.0.1:11435/v1`), Big Mac remote network, and Custom. Advice note confirms `127.0.0.1` is local to MacBook unless tunnel is active.
+    - Truthful readiness states: tunnel absent, host unreachable, protocol incompatible (404), model missing, model streaming.
+    - Zero network egress when AI is disabled verified.
+  - **Workstream B (Piper setup, speech cache, Kokoro experiment):**
+    - Rewrote `desktop/core/tts-cache.cjs` with SHA-256 fingerprinting across `(engine, model, voice, speaker, rate, volume, pitch, text)`, LRU & TTL eviction, hit/miss tracking, and per-source filtering (`ttsCacheReplies`, `ttsCacheRemarks`, `ttsCacheCheckins`, `ttsCacheNeverSensitive`).
+    - Extended `desktop/core/tts-piper.cjs` with `probePiper()` (CLI flag/version detector), `probeVoiceModel()` (JSON config and speaker map inspection), and structured readiness states.
+    - Conducted bounded Kokoro feasibility & benchmark experiment (`desktop/core/kokoro-experiment.cjs`): evaluated M1 8GB RAM footprint (~385 MB vs Piper's 48 MB) and cold-start latency (1200–1950 ms vs Piper's ~110 ms). Recorded definitive **NO-GO** decision for bundling with pluggable seam preserved.
+  - **Workstream C (DexDictate interoperability):**
+    - Read-only inspection of `westkitty/DexDictate_MacOS` confirmed absence of local socket, URL callback, or XPC transcript export in v1.0.
+    - Created `desktop/core/dexdictate-interop.cjs` reporting truthful status: `"Installed — external dictation / Direct handoff unavailable"`.
+    - Created upstream contract proposal: `desktop/docs/DEXDICTATE_INTEGRATION_PROPOSAL.md` specifying a Unix domain socket NDJSON protocol.
+    - Reported direct handoff as **BLOCKED**; focused dictation guidance provided in Settings.
+  - **Workstream D (Markdown project-memory store):**
+    - Created `desktop/core/documents.cjs`: local document store in `userData/project-documents.json` (mode 0600).
+    - Supports `.md` / `.txt` files (UTF-8, $\le 512$ KiB, max 10 docs, SHA-256 integrity).
+    - Heading and paragraph boundary chunking (`#`, `##`, `###`).
+    - Keyword/heading relevance scoring bounded to $\le 1200$ chars with citations formatted as `[Reference: <filename> > <heading>]`.
+    - Enforced dual-gate continuity firewall (`useProjectMemory` + `allowProjectMemoryRemote`).
+  - **Workstream E (Questions to Ask expansion):**
+    - Created `desktop/core/questions-library.cjs`: 84 distinct authored questions across 8 categories (`focus`, `progress`, `decisions`, `breaks`, `learning`, `reflection`, `play`, `opinions`).
+    - Verified strict restraint: **zero exclamation marks and zero emojis** across all questions, choices, replies, and follow-ups.
+    - Supported multi-level follow-up choice trees on any choice via `resolve()` and `publicView()`.
+    - Provided search, category filtering, export/import JSON, and legacy migration.
+  - **Workstream F (Hit testing, Pin/Roam, Headroom & Bubbles):**
+    - Extended `desktop/hit-test.js` with `isNoseHit()` defining normalized nose regions for pixel, cel, and atlas art with horizontal flip mirroring.
+    - Updated `desktop/renderer.js` to require 5 left-clicks specifically on Dexter's nose within 2000 ms to trigger developer unlock. Drags, body pokes, and scale changes reset the counter.
+    - Right-click context menu hides Developer tools while locked, and provides a "Re-lock Developer Tools" option when unlocked.
+    - Added "Pin Dexter in place" checkbox (`pinned`) and restrained autonomous roaming (`roamingEnabled`) with comprehensive safety suppressions (quiet mode, motion reduction, active drag cooldown $\ge 60$ s, sleep/nap state, open chat/settings windows).
+    - Overhauled pet headroom clamping (`allowHeadroomBleed: true`) permitting visible art to reach display top edge. Added `desktop-bubble-flip` placing the bubble beneath Dexter when near screen top.
+    - Updated detached bubble window (`ui/bubble.html`, `ui/bubble.js`) with check-in choice answering, snap beside Dexter, and position reset.
+- **Empirical Evidence:**
+  - Root web unit tests: 69/69 PASS (`npm test`).
+  - Desktop unit tests: 89/89 PASS (`cd desktop && npm test`).
+  - Desktop syntax check: `npm run check` passes 100% across all 20+ desktop modules and stage scripts.
+- **Physical MacBook QA Gaps (Unverified on hardware):**
+  - Physical live Big Mac tunnel connection (`127.0.0.1:11435/v1`).
+  - Live Piper binary invocation on this physical machine.
+  - Live DexDictate Accessibility typing into focused Conversation textarea.
+  - Multi-display physical recovery and macOS trackpad drag gesture.
+

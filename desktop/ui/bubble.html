@@ -9,9 +9,19 @@
 </head>
 <body class="bubble-window">
   <section class="float-bubble" id="bubble" role="status" aria-live="polite" hidden>
-    <header class="float-bubble-head"><small>DEXTER</small><button type="button" class="icon-button" id="close" aria-label="Dismiss">×</button></header>
+    <header class="float-bubble-head">
+      <small>DEXTER</small>
+      <div class="bubble-head-actions">
+        <button type="button" class="icon-button" id="snap" title="Snap beside Dexter">⤢</button>
+        <button type="button" class="icon-button" id="reset" title="Reset position">↺</button>
+        <button type="button" class="icon-button" id="close" aria-label="Dismiss">×</button>
+      </div>
+    </header>
     <p id="text"></p>
-    <button type="button" class="link" id="more" hidden>Open conversation</button>
+    <div id="choices" class="float-bubble-choices"></div>
+    <div class="float-bubble-foot">
+      <button type="button" class="link" id="more" hidden>Open conversation</button>
+    </div>
   </section>
   <script src="./bubble.js"></script>
 </body>

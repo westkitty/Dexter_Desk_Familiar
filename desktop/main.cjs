@@ -27,6 +27,10 @@ const packets = require('./core/packet.cjs');
 const scripts = require('./core/scripts.cjs');
 const {createWhisper, checkWhisper} = require('./core/stt-whisper.cjs');
 const {createTtsCache, listVoices} = require('./core/tts-cache.cjs');
+const {createDocumentsStore} = require('./core/documents.cjs');
+const questionsLib = require('./core/questions-library.cjs');
+const dexdictate = require('./core/dexdictate-interop.cjs');
+const kokoro = require('./core/kokoro-experiment.cjs');
 
 const ROOT = __dirname;
 const SETTINGS_NAME = 'desktop-settings.json';
@@ -64,13 +68,14 @@ const state = {
   checkinTimer: null, lastCheckinAt: null, lastCheckinId: null, activeCheckin: null,
   displayTimer: null, crashTimes: [], startedAt: Date.now(),
   inspectorWin: null, bubbleWin: null, sessionTimer: null, sessionMilestone: null, gagTimer: null,
-  lastUserText: '', hotkeyStatus: 'off', sttStatus: 'off', chatBoundsTimer: null
+  lastUserText: '', hotkeyStatus: 'off', sttStatus: 'off', chatBoundsTimer: null,
+  devUnlocked: false, lastUserDragTime: 0, roamTimer: null
 };
 const events = createEventLog({limit: 200});
 const budget = attention.createBudget();
 const piper = createPiper();
 let conversation = createConversation();
-let journal = null, notes = null, ttsCache = null;
+let journal = null, notes = null, ttsCache = null, documents = null, questionsStore = null;
 const picker = checkins.createPicker();
 const workSession = sessions.createSession();
 const whisper = createWhisper();
@@ -127,6 +132,13 @@ function load() {
   notes = createNotes({file: path.join(data, 'notes.json')});
   notes.load();
   ttsCache = createTtsCache({dir: path.join(data, 'tts-cache')});
+  documents = createDocumentsStore({file: path.join(data, 'project-documents.json')});
+  documents.load();
+  questionsStore = questionsLib.createQuestionsStore({file: path.join(data, 'questions-library.json')});
+  questionsStore.load();
+  if (state.settings?.customCheckins?.length) {
+    questionsStore.migrateLegacy(state.settings.customCheckins);
+  }
   if (!state.settings?.keepJournal) journal?.clear();
   conversation = createConversation({file: state.historyPath, persist: state.settings.rememberConversation});
   conversation.load();
@@ -158,12 +170,13 @@ function setPassThrough(on) {
 // ---------------------------------------------------------------- geometry
 function reposition(delta) {
   if (!alive(state.win)) return;
+  state.lastUserDragTime = Date.now();
   const current = state.win.getBounds();
   if (!state.dragVirtual) state.dragVirtual = {x: current.x, y: current.y};
   state.dragVirtual.x += Math.round(delta.dx);
   state.dragVirtual.y += Math.round(delta.dy);
   const target = screen.getDisplayNearestPoint({x: state.dragVirtual.x + Math.floor(current.width / 2), y: state.dragVirtual.y + Math.floor(current.height / 2)}).workArea;
-  const position = ws.clampPosition(state.dragVirtual, target, current);
+  const position = ws.clampPosition(state.dragVirtual, target, current, {allowHeadroomBleed: true});
   state.win.setPosition(position.x, position.y);
 }
 function placeWindow() {
@@ -171,7 +184,7 @@ function placeWindow() {
   const saved = state.settings.x !== null && state.settings.y !== null;
   const display = (saved ? screen.getDisplayNearestPoint({x: state.settings.x + Math.floor(size.width / 2), y: state.settings.y + Math.floor(size.height / 2)}) : screen.getPrimaryDisplay()).workArea;
   const candidate = {x: saved ? state.settings.x : display.x + display.width - size.width - 28, y: saved ? state.settings.y : display.y + display.height - size.height - 28};
-  state.win.setBounds({...size, ...ws.clampPosition(candidate, display, size)});
+  state.win.setBounds({...size, ...ws.clampPosition(candidate, display, size, {allowHeadroomBleed: true})});
 }
 function rescale() {
   if (!alive(state.win)) return;
@@ -302,12 +315,16 @@ function updateSettings(patch) {
     for (const key of Object.keys(patch)) {
       if (!Object.hasOwn(ws.DEFAULTS, key)) continue;
       if (key === 'aiEndpoint') {
-        const checked = ws.validateEndpoint(patch.aiEndpoint, {allowRemote: next.aiAllowRemote});
+        const allowPath = next.aiProvider === 'openai_compatible' || next.aiProvider === 'hermes_unverified' || (patch.aiEndpoint && patch.aiEndpoint.includes('/v1'));
+        const checked = ws.validateEndpoint(patch.aiEndpoint, {allowRemote: next.aiAllowRemote, allowPath});
         if (!checked.ok) { rejected.push(key); endpointError = checked.reason; }
       } else if (next[key] !== patch[key]) rejected.push(key);
     }
   }
   applySettings(state.settings, next);
+  if ('pinned' in patch || 'roamingEnabled' in patch) {
+    armRoaming();
+  }
   return {...publicSettings(), rejected, endpointError};
 }
 function publicSettings() {
@@ -315,10 +332,14 @@ function publicSettings() {
   delete s.size;
   return {settings: s, platform: process.platform, canLaunchAtLogin: PLATFORM_MAC || process.platform === 'win32',
     defaults: ws.DEFAULTS, aiStatus: state.aiStatus, aiDetail: state.aiDetail, ttsStatus: state.ttsStatus,
-    passThrough: state.passThrough, visible: alive(state.win) && state.win.isVisible(),
+    passThrough: state.passThrough, visible: alive(state.win) && state.win.isVisible(), devUnlocked: Boolean(state.devUnlocked),
     hotkeyStatus: state.hotkeyStatus, sttStatus: state.sttStatus, modes: Object.fromEntries(Object.entries(modes.MODES).map(([k, v]) => [k, {label: v.label, tagline: v.tagline}])),
     notes: notes ? notes.list() : [], notesCrossings: notes ? notes.crossings : 0, journalEntries: journal && state.settings.keepJournal ? journal.read().length : 0,
-    ttsCacheStats: ttsCache ? ttsCache.stats() : {files: 0, bytes: 0}, session: workSession.snapshot()};
+    documents: documents ? documents.list() : [], documentsStats: documents ? documents.stats() : null,
+    ttsCacheStats: ttsCache ? ttsCache.stats() : {files: 0, bytes: 0, hits: 0, misses: 0},
+    questionsCategories: questionsStore ? questionsStore.categories : [],
+    enabledQuestionsCategories: questionsStore ? questionsStore.enabledCategories : [],
+    session: workSession.snapshot()};
 }
 
 // ---------------------------------------------------------------- menus
@@ -349,13 +370,15 @@ function tricksMenu() {
 }
 function devMenu() {
   return Menu.buildFromTemplate([
-    {label: 'Developer tools', enabled: false},
+    {label: 'Developer tools (Unlocked)', enabled: false},
     {label: 'Force semantic state', submenu: Object.keys(semanticStates.SEMANTIC).map(id => ({label: id, click: () => semantic.enter(id, 'developer', {force: true})}))},
     {label: 'Show a check-in now', click: () => runCheckin({force: true})},
     {label: 'Event reaction', submenu: Object.keys(persona.EVENTS).map(k => ({label: k, click: () => proactiveEvent(k, {force: true})}))},
     {label: 'Trick', submenu: tricksMenu()},
     {label: 'Typewriter speed', submenu: [20, 45, 80, 120].map(cps => ({label: cps + ' chars/s', type: 'radio', checked: state.settings.typewriterCps === cps, click: () => updateSettings({typewriterCps: cps})}))},
-    {label: 'Inspector…', click: () => openInspector()}
+    {label: 'Inspector…', click: () => openInspector()},
+    {type: 'separator'},
+    {label: 'Re-lock Developer Tools', click: () => { state.devUnlocked = false; refreshMenus(); }}
   ]);
 }
 function petMenu() {
@@ -378,13 +401,14 @@ function petMenu() {
     {label: 'Size', submenu: scaleMenu()},
     {label: 'Opacity', submenu: [1, 0.85, 0.7, 0.55].map(opacity => ({label: Math.round(opacity * 100) + '%', type: 'radio', checked: s.opacity === opacity, click: () => updateSettings({opacity})}))},
     {label: 'Always on top', type: 'checkbox', checked: s.alwaysOnTop, click: () => updateSettings({alwaysOnTop: !state.settings.alwaysOnTop})},
+    {label: 'Pin Dexter in place', type: 'checkbox', checked: s.pinned, click: () => updateSettings({pinned: !state.settings.pinned})},
     {label: 'Click through transparent area', type: 'checkbox', checked: s.preciseHitTest, click: () => updateSettings({preciseHitTest: !state.settings.preciseHitTest})},
     {label: 'Pass through all clicks', type: 'checkbox', checked: state.passThrough, click: () => setPassThrough(!state.passThrough)},
     {label: 'Quiet mode', type: 'checkbox', checked: s.quiet, click: () => updateSettings({quiet: !state.settings.quiet})},
     {type: 'separator'},
     {label: 'Settings…', click: () => openSettings()},
     {label: 'Inspector…', click: () => openInspector()},
-    ...(s.developerTools ? [{label: 'Developer', submenu: devMenu()}] : []),
+    ...(s.developerTools && state.devUnlocked ? [{label: 'Developer', submenu: devMenu()}] : []),
     {label: 'Reset position', click: resetPosition},
     {label: alive(state.win) && state.win.isVisible() ? 'Hide Dexter' : 'Show Dexter', click: () => (alive(state.win) && state.win.isVisible() ? hidePet() : restore())},
     {label: 'Quit Dexter', click: () => app.quit()}
@@ -540,6 +564,57 @@ function ensureBubbleWindow() {
   state.bubbleWin = win;
   return win;
 }
+function snapBubbleWindow() {
+  if (!alive(state.bubbleWin) || !alive(state.win)) return;
+  const pet = state.win.getBounds();
+  const size = state.bubbleWin.getBounds();
+  const at = ws.panelBeside(pet, {width: size.width, height: size.height}, screen.getDisplayNearestPoint({x: pet.x + Math.floor(pet.width / 2), y: pet.y + Math.floor(pet.height / 2)}).workArea);
+  state.bubbleWin.setBounds({x: at.x, y: at.y, width: size.width, height: size.height});
+  state.settings.bubbleBounds = {x: at.x, y: at.y};
+  scheduleSave();
+}
+function resetBubbleWindow() {
+  state.settings.bubbleBounds = null;
+  snapBubbleWindow();
+}
+
+function armRoaming() {
+  clearTimeout(state.roamTimer); state.roamTimer = null;
+  const s = eff();
+  if (s.pinned || !s.roamingEnabled) return;
+  const delay = Math.round((90 + Math.random() * 90) * 1000);
+  state.roamTimer = setTimeout(tryRoam, delay);
+}
+function tryRoam() {
+  state.roamTimer = null;
+  const s = eff();
+  if (s.pinned || !s.roamingEnabled) return;
+  if (s.quiet || s.motion === 'reduced') { armRoaming(); return; }
+  if (state.moving || state.napping || state.bubbleOpen) { armRoaming(); return; }
+  if (alive(state.chatWin) && state.chatWin.isVisible()) { armRoaming(); return; }
+  if (alive(state.settingsWin) && state.settingsWin.isVisible()) { armRoaming(); return; }
+  if (!alive(state.win) || !state.win.isVisible()) { armRoaming(); return; }
+  if (Date.now() - (state.lastUserDragTime || 0) < 60000) { armRoaming(); return; }
+  const current = state.win.getBounds();
+  const dx = Math.round((Math.random() * 50) - 25);
+  const dy = Math.round((Math.random() * 24) - 12);
+  if (Math.abs(dx) < 6 && Math.abs(dy) < 6) { armRoaming(); return; }
+  const display = screen.getDisplayNearestPoint({x: current.x + Math.floor(current.width / 2), y: current.y + Math.floor(current.height / 2)}).workArea;
+  const target = {x: current.x + dx, y: current.y + dy};
+  const clamped = ws.clampPosition(target, display, current, {allowHeadroomBleed: true});
+  if (dx !== 0) {
+    const nextFlipped = dx < 0;
+    if (state.settings.flipped !== nextFlipped) {
+      state.settings.flipped = nextFlipped;
+      sendPet('dexter:prefs', {flipped: nextFlipped});
+      scheduleSave();
+    }
+  }
+  state.win.setPosition(clamped.x, clamped.y);
+  rememberPosition();
+  armRoaming();
+}
+
 function openSettings(section) {
   if (!alive(state.settingsWin)) {
     const win = new BrowserWindow({
@@ -560,7 +635,7 @@ function openSettings(section) {
 
 // ---------------------------------------------------------------- bubbles, speech, proactive events
 function showBubble(payload) {
-  const detached = state.settings.bubbleMode === 'window' && (payload.kind === 'say' || payload.kind === 'reply');
+  const detached = state.settings.bubbleMode === 'window' && (payload.kind === 'say' || payload.kind === 'reply' || payload.kind === 'checkin');
   if (detached) {
     const win = ensureBubbleWindow();
     const send = () => { win.webContents.send('bubble:show', payload); win.showInactive(); };
@@ -568,7 +643,13 @@ function showBubble(payload) {
     return;
   }
   state.bubbleOpen = payload.kind !== 'hide';
-  sendPet('dexter:bubble', payload);
+  let flipBubble = false;
+  if (alive(state.win)) {
+    const bounds = state.win.getBounds();
+    const display = screen.getDisplayNearestPoint({x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2}).workArea;
+    flipBubble = (bounds.y - display.y) < (ws.headroomHeight(bounds) + 36);
+  }
+  sendPet('dexter:bubble', {...payload, flipBubble});
 }
 // Optional native notification for things Dexter could not show because he is hidden.
 function notify(title, body, onClick) {
@@ -649,7 +730,8 @@ function runCheckin({force = false} = {}) {
     return {shown: false, reason: decision.reason};
   }
   if (!force) budget.record(Date.now());
-  const checkin = picker.next(state.settings, state.lastCheckinId);
+  const poolSettings = {...state.settings, libraryPool: questionsStore ? questionsStore.list({enabledOnly: true}) : null};
+  const checkin = picker.next(poolSettings, state.lastCheckinId);
   state.activeCheckin = checkin; state.lastCheckinId = checkin.id; state.lastCheckinAt = Date.now();
   if (alive(state.win) && !state.win.isVisible() && force) restore();
   semantic.enter('alert', 'check-in', {force: true});
@@ -870,17 +952,31 @@ async function chatSend(raw, {retry = false} = {}) {
   setAiStatus('streaming', 'Dexter is considering it.');
   semantic.enter('thinking', 'model request', {force: true});
   let collected = '';
-  // Continuity firewall: notes cross into the model request only when allowed.
+  // Continuity firewall: notes and project documents cross into the model request only when allowed.
   const block = notes.cross(state.settings.notesInContext, 'chat');
+  const isEndpointRemote = !ws.isLoopback(state.settings.aiEndpoint);
+  const docBlock = documents ? documents.cross({
+    enabled: state.settings.useProjectMemory,
+    isRemote: isEndpointRemote,
+    allowRemote: state.settings.allowProjectMemoryRemote,
+    query: text,
+    purpose: 'chat'
+  }) : null;
+
+  let extraPrompt = '';
+  if (block) extraPrompt += '\n\n' + block.text;
+  if (docBlock) extraPrompt += '\n\n' + docBlock.text;
+
   const result = await ai.streamChat({
-    messages: conversation.context(), systemPrompt: persona.SYSTEM_PROMPT + (block ? '\n\n' + block.text : ''),
+    messages: conversation.context(), systemPrompt: persona.SYSTEM_PROMPT + extraPrompt,
     onToken: token => { collected += token; pushChat({type: 'token', id: pending.id, text: token}); }
   });
   const finalText = result.text || collected;
   const status = result.status === 'done' ? 'complete' : result.status === 'truncated' ? 'truncated' : result.status === 'cancelled' ? 'cancelled' : 'error';
-  conversation.update(pending.id, {content: finalText, status});
+  const citations = docBlock ? docBlock.citations : [];
+  conversation.update(pending.id, {content: finalText, status, citations});
   events.record('ai', 'reply-' + result.status, {chars: finalText.length});
-  pushChat({type: 'done', id: pending.id, status, text: finalText, detail: result.detail || ''});
+  pushChat({type: 'done', id: pending.id, status, text: finalText, detail: result.detail || '', citations});
   if (result.status === 'done' || result.status === 'truncated') {
     setAiStatus('ready', result.model ? 'Connected · ' + result.model : 'Connected.');
     semantic.enter('watching', 'reply delivered', {force: true});
@@ -913,7 +1009,7 @@ function snapshot() {
   for (const m of app.getAppMetrics()) { memoryMB += (m.memory?.workingSetSize || 0) / 1024; cpuPercent += m.cpu?.percentCPUUsage || 0; }
   const endpoint = ws.validateEndpoint(state.settings.aiEndpoint, {allowRemote: true});
   const bounds = alive(state.win) ? state.win.getBounds() : null;
-  const channels = ['dexter:hit', 'dexter:move', 'dexter:drag-end', 'dexter:menu', 'dexter:status', 'dexter:checkin-answer', 'dexter:bubble-dismissed', 'dexter:open-chat', 'dexter:speech-state', 'dexter:dev'];
+  const channels = ['dexter:hit', 'dexter:move', 'dexter:drag-end', 'dexter:menu', 'dexter:status', 'dexter:checkin-answer', 'dexter:bubble-dismissed', 'dexter:open-chat', 'dexter:speech-state', 'dexter:dev', 'dexter:dev-unlock', 'dexter:dev-lock'];
   return {
     now: Date.now(), settings: {...state.settings}, windows, cspConnectNone: cspOk(), egressCount: state.egressCount, egressWhileDisabled: state.egressWhileDisabled,
     trayAlive: Boolean(state.tray && !state.tray.isDestroyed()), passThrough: state.passThrough,
@@ -923,6 +1019,8 @@ function snapshot() {
     memoryMB, cpuPercent, uptimeSeconds: (Date.now() - state.startedAt) / 1000, displayCount: screen.getAllDisplays().length,
     familiarState: state.familiarState, visible: alive(state.win) && state.win.isVisible(),
     aiStatus: state.aiStatus, ttsStatus: state.ttsStatus, endpointLoopback: endpoint.loopback !== false,
+    documentsStats: documents ? documents.stats() : null,
+    ttsCacheStats: ttsCache ? ttsCache.stats() : null,
     conversationSize: conversation.size, eventCounts: events.summary(), recentEvents: events.recent(40),
     app: {name: app.getName(), version: app.getVersion(), packaged: app.isPackaged},
     platform: {os: process.platform, arch: process.arch, release: os.release(), electron: process.versions.electron, chrome: process.versions.chrome}
@@ -939,7 +1037,9 @@ function inspectorSnapshot() {
     session: {...workSession.snapshot(), tier: 'verified'},
     services: {ai: state.aiStatus + (state.aiDetail ? ' — ' + state.aiDetail : ''), tts: state.ttsStatus, stt: state.sttStatus, hotkey: state.hotkeyStatus,
       notifications: state.settings.nativeNotifications ? (Notification.isSupported() ? 'on' : 'unsupported') : 'off', tier: 'verified'},
-    memory: {notes: notes.size, crossings: notes.crossings, notesInContext: state.settings.notesInContext, conversation: conversation.size, tier: 'verified'},
+    memory: {notes: notes.size, crossings: notes.crossings, notesInContext: state.settings.notesInContext,
+      documents: documents ? documents.size : 0, docCrossings: documents ? documents.crossings : 0, useProjectMemory: state.settings.useProjectMemory,
+      conversation: conversation.size, tier: 'verified'},
     journal: state.settings.keepJournal ? journal.read().slice(-20) : null,
     audit: diagnostics.runSelfAudit(snapshot())
   };
@@ -999,10 +1099,27 @@ function setupIpc() {
   });
   ipcMain.on('dexter:checkin-answer', (event, answer) => {
     if (!fromPet(event) || !answer || typeof answer.id !== 'string' || !Array.isArray(answer.path)) return;
-    answerCheckin(answer.id, answer.path.slice(0, 2));
+    answerCheckin(answer.id, answer.path.slice(0, 5));
   });
-  // Five quick pokes open the developer menu, but only when the user enabled it.
-  ipcMain.on('dexter:dev', event => { if (fromPet(event) && state.settings.developerTools) devMenu().popup({window: state.win}); });
+  // Five quick nose pokes unlock developer mode when enabled in settings.
+  ipcMain.on('dexter:dev', event => {
+    if (fromPet(event) && state.settings.developerTools && state.devUnlocked) {
+      devMenu().popup({window: state.win});
+    }
+  });
+  ipcMain.on('dexter:dev-unlock', event => {
+    if (fromPet(event) && state.settings.developerTools) {
+      state.devUnlocked = true;
+      refreshMenus();
+      devMenu().popup({window: state.win});
+    }
+  });
+  ipcMain.on('dexter:dev-lock', event => {
+    if (fromPet(event)) {
+      state.devUnlocked = false;
+      refreshMenus();
+    }
+  });
   ipcMain.on('dexter:bubble-dismissed', event => {
     if (!fromPet(event)) return;
     state.bubbleOpen = false;
@@ -1018,10 +1135,11 @@ function setupIpc() {
   ipcMain.handle('dexter:piper', async (event, text) => {
     if (!fromPet(event) || typeof text !== 'string') throw new Error('Forbidden');
     if (!state.settings.ttsEnabled || state.settings.ttsEngine !== 'piper') throw new Error('Piper is not enabled.');
-    const cached = state.settings.ttsCache ? ttsCache.get(text, state.settings.piperModel, state.settings.ttsRate) : null;
+    const shouldCache = ttsCache && ttsCache.shouldCacheSource(state.currentSpeechKind || 'reply', state.settings);
+    const cached = shouldCache ? ttsCache.get(text, {model: state.settings.piperModel, rate: state.settings.ttsRate, volume: state.settings.ttsVolume}) : null;
     if (cached) { events.record('tts', 'cache-hit', {}); return new Uint8Array(cached); }
     const wav = await piper.synthesize(text, state.settings);
-    if (state.settings.ttsCache) { try { ttsCache.put(text, state.settings.piperModel, state.settings.ttsRate, wav); } catch {} }
+    if (shouldCache) { try { ttsCache.put(text, {model: state.settings.piperModel, rate: state.settings.ttsRate, volume: state.settings.ttsVolume}, wav); } catch {} }
     return new Uint8Array(wav);
   });
   ipcMain.on('dexter:piper-cancel', event => { if (fromPet(event)) piper.cancel(); });
@@ -1068,6 +1186,123 @@ function setupIpc() {
   handle('demo:play', 'any', () => demo.play());
   handle('piper:voices', 'settings', () => listVoices(state.settings.piperVoicesDir));
   handle('tts:cache-clear', 'settings', () => { ttsCache.clear(); return ttsCache.stats(); });
+  handle('tts:cache-stats', 'settings', () => ttsCache.stats());
+  handle('tts:cache-entries', 'settings', () => ttsCache.entries());
+  handle('tts:cache-remove', 'settings', key => ttsCache.remove(key));
+  handle('piper:probe', 'settings', async () => {
+    const cli = await piper.probePiper(state.settings.piperPath);
+    const model = piper.probeVoiceModel(state.settings.piperModel);
+    return {cli, model};
+  });
+  handle('kokoro:check', 'settings', () => kokoro.getReport());
+  handle('dexdictate:check', 'settings', () => dexdictate.checkDexDictate());
+  handle('dev:unlock', 'any', () => {
+    if (state.settings.developerTools) {
+      state.devUnlocked = true;
+      refreshMenus();
+      return {unlocked: true};
+    }
+    return {unlocked: false};
+  });
+  handle('dev:lock', 'any', () => {
+    state.devUnlocked = false;
+    refreshMenus();
+    return {unlocked: false};
+  });
+  handle('bubble:answer', 'bubble', payload => {
+    if (payload && payload.id && Array.isArray(payload.path)) {
+      answerCheckin(payload.id, payload.path);
+      return true;
+    }
+    return false;
+  });
+  handle('bubble:snap', 'bubble', () => { snapBubbleWindow(); return true; });
+  handle('bubble:reset', 'bubble', () => { resetBubbleWindow(); return true; });
+
+  // Documents store IPC
+  handle('docs:list', 'settings', () => (documents ? documents.list() : []));
+  handle('docs:import', 'settings', async () => {
+    const res = await dialog.showOpenDialog(state.settingsWin || undefined, {
+      title: 'Import project document',
+      properties: ['openFile'],
+      filters: [{name: 'Markdown & Text', extensions: ['md', 'markdown', 'txt']}]
+    });
+    if (res.canceled || !res.filePaths.length) return {imported: false};
+    try {
+      const meta = documents.importFile(res.filePaths[0]);
+      return {imported: true, document: meta};
+    } catch (e) {
+      return {imported: false, error: e.message};
+    }
+  });
+  handle('docs:import-text', 'settings', payload => {
+    if (!payload || !payload.name || typeof payload.content !== 'string') return {imported: false, error: 'Invalid payload'};
+    try {
+      const meta = documents.importText(payload.name, payload.content);
+      return {imported: true, document: meta};
+    } catch (e) {
+      return {imported: false, error: e.message};
+    }
+  });
+  handle('docs:toggle', 'settings', payload => (documents ? documents.toggle(payload.id, payload.enabled) : false));
+  handle('docs:delete', 'settings', payload => (documents ? documents.remove(payload.id) : false));
+  handle('docs:clear', 'settings', () => { if (documents) documents.clear(); return true; });
+  handle('docs:preview', 'settings', payload => (documents ? documents.get(payload.id) : null));
+
+  // Questions library IPC
+  handle('questions:list', 'settings', payload => (questionsStore ? questionsStore.list(payload) : []));
+  handle('questions:save', 'settings', payload => {
+    try {
+      const saved = questionsStore.saveQuestion(payload);
+      return {ok: true, question: saved};
+    } catch (e) {
+      return {ok: false, error: e.message};
+    }
+  });
+  handle('questions:delete', 'settings', payload => (questionsStore ? questionsStore.deleteQuestion(payload.id) : false));
+  handle('questions:toggle-category', 'settings', payload => (questionsStore ? questionsStore.setCategoryEnabled(payload.category, payload.enabled) : false));
+  handle('questions:export', 'settings', async () => {
+    if (!questionsStore) return {saved: false};
+    const jsonStr = questionsStore.exportJson();
+    const res = await dialog.showSaveDialog(state.settingsWin || undefined, {
+      title: 'Export questions library',
+      defaultPath: path.join(app.getPath('downloads'), 'dexter-questions.json'),
+      filters: [{name: 'JSON', extensions: ['json']}]
+    });
+    if (res.canceled || !res.filePath) return {saved: false};
+    fs.writeFileSync(res.filePath, jsonStr, {mode: 0o600});
+    return {saved: true, filePath: res.filePath};
+  });
+  handle('questions:import', 'settings', async () => {
+    const res = await dialog.showOpenDialog(state.settingsWin || undefined, {
+      title: 'Import questions library',
+      properties: ['openFile'],
+      filters: [{name: 'JSON', extensions: ['json']}]
+    });
+    if (res.canceled || !res.filePaths.length) return {imported: 0};
+    try {
+      const content = fs.readFileSync(res.filePaths[0], 'utf8');
+      const count = questionsStore.importJson(content);
+      return {imported: count};
+    } catch (e) {
+      return {imported: 0, error: e.message};
+    }
+  });
+
+  handle('dialog:pick-file', 'settings', async payload => {
+    const res = await dialog.showOpenDialog(state.settingsWin || undefined, {
+      properties: ['openFile'],
+      filters: payload?.filters
+    });
+    return res.canceled ? null : res.filePaths[0];
+  });
+  handle('dialog:pick-dir', 'settings', async () => {
+    const res = await dialog.showOpenDialog(state.settingsWin || undefined, {
+      properties: ['openDirectory']
+    });
+    return res.canceled ? null : res.filePaths[0];
+  });
+
   handle('stt:check', 'settings', () => checkWhisper(state.settings));
   // Microphone: asked for only when the user presses the record button with speech input enabled.
   handle('stt:prepare', 'chat', async () => {

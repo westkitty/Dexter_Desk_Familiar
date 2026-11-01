@@ -54,6 +54,7 @@ if (native) {
     bubble.hidden = true; bubbleKind = null;
     bubbleChoices.replaceChildren();
     document.body.classList.remove('desktop-bubble-open');
+    document.body.classList.remove('desktop-bubble-flip');
     if (notify) native.dismissBubble();
     if (lastPointer && !tracking) syncHover(lastPointer.x, lastPointer.y);
     return wasCheckin;
@@ -62,6 +63,7 @@ if (native) {
     if (payload.kind === 'hide') { hideBubble(false); return; }
     clearTimeout(bubbleTimer);
     bubbleKind = payload.kind;
+    document.body.classList.toggle('desktop-bubble-flip', Boolean(payload.flipBubble));
     typewrite(String(payload.text || '').slice(0, 400));
     bubbleChoices.replaceChildren();
     if (payload.kind === 'checkin' && Array.isArray(payload.choices)) {
@@ -170,6 +172,7 @@ if (native) {
     if (!prefs.tts.enabled) speech.cancel();
     applyAnimationSpeed();
     cachedMask.source = null;
+    resetNoseClicks();
   }
   systemReduced?.addEventListener?.('change', () => setControl('motionToggle', reducedMotion()));
 
@@ -295,14 +298,43 @@ if (native) {
   }
   document.addEventListener('animationstart', applyAnimationSpeed);
   document.getElementById('celVideo')?.addEventListener('play', applyAnimationSpeed);
-  // Five quick pokes open the developer menu when it is enabled (Reloaded's five-click dev panel).
-  let devClicks = [];
-  document.addEventListener('dexter-desktop-poke', () => {
-    if (!prefs.developerTools) return;
+  // Nose-only developer unlock: five quick clicks directly on Dexter's nose
+  // when developer tools are enabled in settings. Any drag, body poke, timeout (2000ms),
+  // or art/scale change resets the sequence.
+  let noseClicks = [];
+  function resetNoseClicks() {
+    noseClicks = [];
+  }
+  function handlePetClick(clientX, clientY) {
+    if (!prefs.developerTools) {
+      resetNoseClicks();
+      return;
+    }
+    const media = visibleMedia();
+    if (!media) {
+      resetNoseClicks();
+      return;
+    }
+    const mediaBounds = media.getBoundingClientRect();
+    const hitApi = window.DexterHitTest;
+    const isNose = hitApi && hitApi.isNoseHit(
+      prefs.art || 'pixel',
+      mediaBounds,
+      clientX,
+      clientY,
+      {flipped: Boolean(prefs.flipped), mask: cachedMask.source === media ? cachedMask : null}
+    );
+    if (!isNose) {
+      resetNoseClicks();
+      return;
+    }
     const now = performance.now();
-    devClicks = devClicks.filter(t => now - t < 1800).concat(now);
-    if (devClicks.length >= 5) { devClicks = []; native.dev(); }
-  });
+    noseClicks = noseClicks.filter(t => now - t < 2000).concat(now);
+    if (noseClicks.length >= 5) {
+      noseClicks = [];
+      native.devUnlock();
+    }
+  }
 
   // ------------------------------------------------------------ pointer: hover routing, drag, poke
   // Forward only a boolean hit test within this overlay, never coordinates or a history.
@@ -323,7 +355,12 @@ if (native) {
   pet.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
     event.stopPropagation();
-    tracking = {x: event.screenX, y: event.screenY, originX: event.screenX, originY: event.screenY, moved: false};
+    tracking = {
+      x: event.screenX, y: event.screenY,
+      originX: event.screenX, originY: event.screenY,
+      clientX: event.clientX, clientY: event.clientY,
+      moved: false
+    };
     try { pet.setPointerCapture(event.pointerId); } catch {}
     native.hit(true);
   });
@@ -340,9 +377,21 @@ if (native) {
   function endDrag(cancelled = false) {
     if (!tracking) return;
     const wasMoved = tracking.moved;
+    const clickPos = {x: tracking.clientX, y: tracking.clientY};
     tracking = null;
     native.endDrag();
-    if (!cancelled) { document.dispatchEvent(new Event(wasMoved ? 'dexter-desktop-moved' : 'dexter-desktop-poke')); showThoughtBriefly(); }
+    if (!cancelled) {
+      if (wasMoved) {
+        resetNoseClicks();
+        document.dispatchEvent(new Event('dexter-desktop-moved'));
+      } else {
+        handlePetClick(clickPos.x, clickPos.y);
+        document.dispatchEvent(new Event('dexter-desktop-poke'));
+      }
+      showThoughtBriefly();
+    } else {
+      resetNoseClicks();
+    }
   }
   pet.addEventListener('pointerup', event => { event.stopPropagation(); endDrag(); });
   pet.addEventListener('pointercancel', event => { event.stopPropagation(); endDrag(true); });

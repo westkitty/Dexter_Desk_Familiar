@@ -19,6 +19,9 @@ function builtinPool() {
   })}));
 }
 function pool(settings) {
+  if (settings && Array.isArray(settings.libraryPool) && settings.libraryPool.length) {
+    return settings.libraryPool;
+  }
   const custom = Array.isArray(settings && settings.customCheckins) ? settings.customCheckins : [];
   const source = settings && settings.checkinSource;
   if (source === 'custom' && custom.length) return custom;
@@ -40,7 +43,7 @@ function createPicker({random = Math.random} = {}) {
 }
 // Resolve an answer path like [0] or [1, 0] (choice, then follow-up choice).
 function resolve(checkin, path) {
-  if (!checkin || !Array.isArray(path) || !path.length || path.length > 2) return null;
+  if (!checkin || !Array.isArray(path) || !path.length || path.length > 5) return null;
   let choices = checkin.choices, choice = null;
   for (const index of path) {
     if (!Array.isArray(choices) || !Number.isInteger(index) || index < 0 || index >= choices.length) return null;

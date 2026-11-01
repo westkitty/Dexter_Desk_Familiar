@@ -17,7 +17,7 @@ const INTENSITIES = Object.freeze(['reserved', 'standard', 'attentive']);
 const MOTION = Object.freeze(['system', 'reduced', 'full']);
 const IDLE_OPTIONS = Object.freeze([30, 60, 120, 300]);
 const CHECKIN_MINUTES = Object.freeze([30, 60, 90, 120, 240]);
-const TTS_ENGINES = Object.freeze(['system', 'piper']);
+const TTS_ENGINES = Object.freeze(['system', 'piper', 'kokoro']);
 const TEXT_SIZES = Object.freeze(['small', 'medium', 'large']);
 const ARTS = Object.freeze(['pixel', 'cel', 'atlas']);
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:11434';
@@ -29,6 +29,10 @@ const SESSION_CHECKIN_MINUTES = Object.freeze([10, 15, 25, 30]);
 const HOTKEYS = Object.freeze(['', 'CommandOrControl+Shift+K', 'CommandOrControl+Shift+D', 'Alt+Shift+D']);
 const BUBBLE_MODES = Object.freeze(['pet', 'window']);
 const MAX_CUSTOM_CHECKINS = 30;
+const AI_PROVIDERS = Object.freeze(['ollama', 'openai_compatible', 'hermes_unverified']);
+const SPEECH_INPUT_PROVIDERS = Object.freeze(['whisper', 'dexdictate']);
+const CORNERS = Object.freeze(['none', 'bottom-right', 'bottom-left', 'top-right', 'top-left']);
+const BUBBLE_DOCKS = Object.freeze(['auto', 'top', 'bottom', 'left', 'right']);
 
 const DEFAULTS = Object.freeze({
   // Appearance
@@ -36,27 +40,30 @@ const DEFAULTS = Object.freeze({
   // Window behavior
   alwaysOnTop: true, preciseHitTest: true, passiveFocus: true,
   showInDock: true, launchAtLogin: false, x: null, y: null,
+  pinned: true, roamingEnabled: false, preferredCorner: 'bottom-right',
   // Familiar behavior
   quiet: false, motion: 'system', sound: false, idleSeconds: 60, intensity: 'standard',
   // Speech output (optional, off)
   ttsEnabled: false, ttsEngine: 'system', ttsVolume: 0.8, ttsRate: 1, ttsVoice: '',
   ttsSpeakReplies: true, ttsSpeakRemarks: false, piperPath: '', piperModel: '',
+  ttsCache: false, ttsCacheReplies: true, ttsCacheRemarks: true, ttsCacheCheckins: true, ttsCacheNeverSensitive: true,
   // Local AI (optional, off, explicit opt-in)
-  aiEnabled: false, aiEndpoint: DEFAULT_ENDPOINT, aiAllowRemote: false, aiModel: '',
+  aiEnabled: false, aiProvider: 'ollama', aiEndpoint: DEFAULT_ENDPOINT, aiAllowRemote: false, aiModel: '',
   aiTimeoutSeconds: 60, aiContextMessages: 12,
   // Conversation privacy
   rememberConversation: false,
   // Check-ins and reactions (optional, off)
   checkinsEnabled: false, checkinMinutes: 60, checkinQuietHours: true, eventReactions: true,
   // Accessibility
-  bubbleTextSize: 'medium', highContrastBubble: false,
+  bubbleTextSize: 'medium', highContrastBubble: false, bubbleDock: 'auto',
   // WestCat parity, round 2 (all optional; privacy-sensitive ones off)
   mode: 'plain', checkinSource: 'mixed', customCheckins: [], keepJournal: false,
   sessionMinutes: 50, sessionCheckinMinutes: 25,
   typewriter: true, typewriterCps: 45, gags: true, animationSpeed: 1, developerTools: false,
   chatCompact: false, chatBounds: null, bubbleMode: 'pet', bubbleBounds: null, showLastReplyOnStart: false,
-  globalHotkey: '', piperVoicesDir: '', ttsCache: false,
-  sttEnabled: false, whisperPath: '', whisperModel: '', notesInContext: false,
+  globalHotkey: '', piperVoicesDir: '',
+  sttEnabled: false, speechInputProvider: 'whisper', whisperPath: '', whisperModel: '',
+  notesInContext: false, useProjectMemory: false, allowProjectMemoryRemote: false,
   allSpaces: false, nativeNotifications: false,
   // Legacy (read for migration only)
   size: 'medium'
@@ -88,18 +95,25 @@ function isLoopbackHost(hostname) {
   return host === 'localhost' || host === '::1' || /^127(\.\d{1,3}){3}$/.test(host);
 }
 // Returns {ok, url, loopback, reason}. Rejects credentials, query strings,
-// non-HTTP schemes and paths: the endpoint is a base URL only.
-function validateEndpoint(value, {allowRemote = false} = {}) {
+// non-HTTP schemes and arbitrary paths. allowPath permits clean path prefixes (e.g. /v1) for OpenAI-compatible gateways.
+function validateEndpoint(value, {allowRemote = false, allowPath = false} = {}) {
   if (typeof value !== 'string' || value.length > 300) return {ok: false, reason: 'Endpoint must be a short URL.'};
   let url;
   try { url = new URL(value.trim()); } catch { return {ok: false, reason: 'Endpoint is not a valid URL.'}; }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return {ok: false, reason: 'Only http and https endpoints are allowed.'};
   if (url.username || url.password) return {ok: false, reason: 'Credentials in the endpoint URL are not allowed.'};
   if (url.search || url.hash) return {ok: false, reason: 'Query strings and fragments are not allowed.'};
-  if (url.pathname && url.pathname !== '/') return {ok: false, reason: 'Use the server base URL without a path.'};
   if (!url.hostname) return {ok: false, reason: 'Endpoint needs a host.'};
   const loopback = isLoopbackHost(url.hostname);
   if (!loopback && !allowRemote) return {ok: false, loopback, reason: 'Non-local endpoints require “Allow a non-local endpoint”.'};
+  if (url.pathname && url.pathname !== '/') {
+    if (!allowPath) return {ok: false, loopback, reason: 'Use the server base URL without a path.'};
+    if (!/^\/[A-Za-z0-9_/.-]+$/.test(url.pathname) || url.pathname.includes('..')) {
+      return {ok: false, loopback, reason: 'Endpoint path contains disallowed characters.'};
+    }
+    const cleanPath = url.pathname.replace(/\/+$/, '');
+    return {ok: true, loopback, url: url.origin + cleanPath};
+  }
   return {ok: true, loopback, url: url.origin};
 }
 
@@ -158,6 +172,9 @@ function sanitizeSettings(candidate) {
     launchAtLogin: bool(v.launchAtLogin, d.launchAtLogin),
     x: Number.isInteger(v.x) && Math.abs(v.x) < 100000 ? v.x : null,
     y: Number.isInteger(v.y) && Math.abs(v.y) < 100000 ? v.y : null,
+    pinned: bool(v.pinned, d.pinned),
+    roamingEnabled: bool(v.roamingEnabled, d.roamingEnabled),
+    preferredCorner: oneOf(v.preferredCorner, CORNERS, d.preferredCorner),
     quiet: bool(v.quiet, d.quiet),
     motion: oneOf(v.motion, MOTION, d.motion),
     sound: bool(v.sound, d.sound),
@@ -172,7 +189,13 @@ function sanitizeSettings(candidate) {
     ttsSpeakRemarks: bool(v.ttsSpeakRemarks, d.ttsSpeakRemarks),
     piperPath: absolutePathOrEmpty(v.piperPath),
     piperModel: absolutePathOrEmpty(v.piperModel),
+    ttsCache: bool(v.ttsCache, d.ttsCache),
+    ttsCacheReplies: bool(v.ttsCacheReplies, d.ttsCacheReplies),
+    ttsCacheRemarks: bool(v.ttsCacheRemarks, d.ttsCacheRemarks),
+    ttsCacheCheckins: bool(v.ttsCacheCheckins, d.ttsCacheCheckins),
+    ttsCacheNeverSensitive: bool(v.ttsCacheNeverSensitive, d.ttsCacheNeverSensitive),
     aiEnabled: bool(v.aiEnabled, d.aiEnabled),
+    aiProvider: oneOf(v.aiProvider, AI_PROVIDERS, d.aiProvider),
     aiAllowRemote: bool(v.aiAllowRemote, d.aiAllowRemote),
     aiEndpoint: d.aiEndpoint,
     aiModel: shortText(v.aiModel, 120),
@@ -184,7 +207,8 @@ function sanitizeSettings(candidate) {
     checkinQuietHours: bool(v.checkinQuietHours, d.checkinQuietHours),
     eventReactions: bool(v.eventReactions, d.eventReactions),
     bubbleTextSize: oneOf(v.bubbleTextSize, TEXT_SIZES, d.bubbleTextSize),
-    highContrastBubble: bool(v.highContrastBubble, d.highContrastBubble)
+    highContrastBubble: bool(v.highContrastBubble, d.highContrastBubble),
+    bubbleDock: oneOf(v.bubbleDock, BUBBLE_DOCKS, d.bubbleDock)
   };
   s.mode = oneOf(v.mode, MODES, d.mode);
   s.checkinSource = oneOf(v.checkinSource, CHECKIN_SOURCES, d.checkinSource);
@@ -204,18 +228,21 @@ function sanitizeSettings(candidate) {
   s.showLastReplyOnStart = bool(v.showLastReplyOnStart, d.showLastReplyOnStart);
   s.globalHotkey = oneOf(v.globalHotkey, HOTKEYS, d.globalHotkey);
   s.piperVoicesDir = absolutePathOrEmpty(v.piperVoicesDir);
-  s.ttsCache = bool(v.ttsCache, d.ttsCache);
   s.sttEnabled = bool(v.sttEnabled, d.sttEnabled);
+  s.speechInputProvider = oneOf(v.speechInputProvider, SPEECH_INPUT_PROVIDERS, d.speechInputProvider);
   s.whisperPath = absolutePathOrEmpty(v.whisperPath);
   s.whisperModel = absolutePathOrEmpty(v.whisperModel);
   s.notesInContext = bool(v.notesInContext, d.notesInContext);
+  s.useProjectMemory = bool(v.useProjectMemory, d.useProjectMemory);
+  s.allowProjectMemoryRemote = bool(v.allowProjectMemoryRemote, d.allowProjectMemoryRemote);
   s.allSpaces = bool(v.allSpaces, d.allSpaces);
   s.nativeNotifications = bool(v.nativeNotifications, d.nativeNotifications);
   // Legacy compatibility for older readers and tests.
   s.size = Object.hasOwn(SIZES, v.size) ? v.size : d.size;
   // The endpoint is kept only when it passes the same policy used at connect time.
   if (typeof v.aiEndpoint === 'string') {
-    const checked = validateEndpoint(v.aiEndpoint, {allowRemote: s.aiAllowRemote});
+    const allowPath = s.aiProvider === 'openai_compatible' || s.aiProvider === 'hermes_unverified' || v.aiEndpoint.includes('/v1');
+    const checked = validateEndpoint(v.aiEndpoint, {allowRemote: s.aiAllowRemote, allowPath});
     if (checked.ok) s.aiEndpoint = checked.url;
   }
   return s;
@@ -242,10 +269,26 @@ function petWindowSize(scale) {
   const width = Math.round(BASE_WIDTH * pct / 100);
   return {width, height: Math.round(width * HEIGHT_RATIO)};
 }
-function clampPosition(position, bounds, windowSize) {
+function headroomHeight(windowSize) {
+  if (!windowSize || !windowSize.width || !windowSize.height) return 0;
+  const artHeight = Math.min(windowSize.width * 0.92, windowSize.height * 0.92);
+  return Math.max(0, Math.round(windowSize.height - artHeight));
+}
+function visibleArtBounds(windowBounds) {
+  if (!windowBounds) return null;
+  const artSize = Math.min(windowBounds.width * 0.92, windowBounds.height * 0.92);
+  return {
+    x: Math.round(windowBounds.x + (windowBounds.width - artSize) / 2),
+    y: Math.round(windowBounds.y + windowBounds.height - artSize),
+    width: Math.round(artSize),
+    height: Math.round(artSize)
+  };
+}
+function clampPosition(position, bounds, windowSize, {allowHeadroomBleed = false} = {}) {
+  const minY = allowHeadroomBleed ? bounds.y - headroomHeight(windowSize) : bounds.y;
   return {
     x: Math.round(Math.max(bounds.x, Math.min(position.x, bounds.x + bounds.width - windowSize.width))),
-    y: Math.round(Math.max(bounds.y, Math.min(position.y, bounds.y + bounds.height - windowSize.height)))
+    y: Math.round(Math.max(minY, Math.min(position.y, bounds.y + bounds.height - windowSize.height)))
   };
 }
 // Keep Dexter's feet in place when the window is resized.
@@ -294,8 +337,9 @@ function isWithinRoot(root, requested) {
 module.exports = {
   SIZES, DEFAULTS, SCALE, OPACITY, INTENSITIES, MOTION, IDLE_OPTIONS, CHECKIN_MINUTES, TTS_ENGINES,
   TEXT_SIZES, DEFAULT_ENDPOINT, MODES, CHECKIN_SOURCES, SESSION_MINUTES, SESSION_CHECKIN_MINUTES, HOTKEYS, BUBBLE_MODES,
+  AI_PROVIDERS, SPEECH_INPUT_PROVIDERS, CORNERS, BUBBLE_DOCKS,
   sanitizeCustomCheckins, MAX_CUSTOM_CHECKINS,
   sanitizeSettings, mergeSettings, validateEndpoint, isLoopbackHost,
-  dimensions, petWindowSize, clampPosition, resizeAnchored, recoverBounds, intersects, panelBeside,
+  dimensions, petWindowSize, headroomHeight, visibleArtBounds, clampPosition, resizeAnchored, recoverBounds, intersects, panelBeside,
   shouldIgnoreMouse, isWithinRoot
 };

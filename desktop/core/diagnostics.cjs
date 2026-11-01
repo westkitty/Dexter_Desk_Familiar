@@ -49,7 +49,7 @@ function redactEndpoint(endpoint, loopback) {
 // Export never includes conversation text, file paths or exact coordinates.
 function buildReport(s, audit) {
   const settings = {...(s.settings || {})};
-  for (const key of ['x', 'y', 'piperPath', 'piperModel', 'ttsVoice']) if (key in settings) settings[key] = settings[key] ? '<set>' : '';
+  for (const key of ['x', 'y', 'piperPath', 'piperModel', 'ttsVoice', 'whisperPath', 'whisperModel', 'customCheckins']) if (key in settings) settings[key] = settings[key] ? '<set>' : '';
   settings.aiEndpoint = redactEndpoint(settings.aiEndpoint, s.endpointLoopback);
   return {
     kind: 'dexter-desktop-diagnostics', schema: 1,
@@ -59,7 +59,9 @@ function buildReport(s, audit) {
       cpuPercent: Number.isFinite(s.cpuPercent) ? Math.round(s.cpuPercent * 10) / 10 : null, displays: s.displayCount || 0,
       familiarState: s.familiarState || 'unknown', visible: Boolean(s.visible), passThrough: Boolean(s.passThrough)},
     ai: {status: s.aiStatus || 'off', egressCount: s.egressCount || 0},
-    tts: {status: s.ttsStatus || 'off'},
+    tts: {status: s.ttsStatus || 'off', cacheStats: s.ttsCacheStats || null},
+    documents: s.documentsStats || null,
+    questions: s.questionsStats || null,
     conversation: {messages: s.conversationSize || 0, persisted: Boolean(settings.rememberConversation)},
     settings,
     audit: audit || runSelfAudit(s),
