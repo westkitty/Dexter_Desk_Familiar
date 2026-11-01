@@ -26,4 +26,20 @@ execFileSync(packager,[
   '--arch=arm64','--out='+out,'--overwrite','--app-bundle-id=dev.stinkyweasel.dexterdesk',
   '--app-version=0.1.0-alpha.1','--prune=true','--asar','--icon='+icon
 ],{cwd:root,stdio:'inherit'});
-console.log('Unsigned development bundle prepared in desktop/out; signing and notarization NOT performed.');
+const app=path.join(out,'Dexter Desk Familiar-darwin-arm64','Dexter Desk Familiar.app');
+if(!fs.existsSync(path.join(app,'Contents','Resources','app.asar'))) throw new Error('Missing packaged app payload');
+// Electron Packager leaves an invalid linker signature on Apple Silicon unless
+// the complete bundle and nested helpers are signed. Ad-hoc signing is a BUILD
+// integrity fix only; it is NOT a Developer ID signature or notarization.
+execFileSync('/usr/bin/codesign',[
+  '--force','--deep','--sign','-','--timestamp=none',app
+],{stdio:'inherit'});
+execFileSync('/usr/bin/codesign',[
+  '--verify','--deep','--strict','--verbose=2',app
+],{stdio:'inherit'});
+const signature=execFileSync('/usr/bin/codesign',[
+  '-dv','--verbose=2',app
+],{encoding:'utf8',stdio:['ignore','pipe','pipe']});
+console.log('macOS arm64 app: ad-hoc code signature verified, including sealed resources.');
+console.log('This is not a Developer ID signature. Gatekeeper may still reject downloads until individually approved.');
+
