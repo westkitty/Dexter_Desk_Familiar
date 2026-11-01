@@ -1,71 +1,75 @@
-# Dexter Desktop — macOS alpha
+# Dexter Desktop — macOS alpha (0.2.0-alpha.1)
 
-A native Electron floating overlay for **the existing Dexter Desk Familiar**, not a replacement application or WESTCAT code import.
+A small, judgmental black dog who floats beside your work. This is the native desktop edition of **Dexter Desk Familiar**. It is a separate package that reuses Dexter's browser behavior engine and approved art. It does not replace the web/PWA edition, which stays independent and unchanged.
 
-## Status
+- **Status:** internal alpha. The app is ad-hoc signed, which proves the bundle's integrity only. It is **not Developer ID signed and not notarized**, so Gatekeeper will ask you to approve it once.
+- **Architecture:** [ARCHITECTURE.md](./ARCHITECTURE.md). **Physical acceptance tests:** [MACBOOK_QA.md](./MACBOOK_QA.md). **Feature lineage:** [../docs/WESTCAT_PARITY_MATRIX.md](../docs/WESTCAT_PARITY_MATRIX.md).
 
-**Build-tested macOS alpha.** The native Electron app launched successfully both from the development stage and as a packaged arm64 `.app` on Big Mac; independent macOS GitHub Actions passed build, packaged smoke, and bundle inspection. This is **not** a signed/notarized release, not installed on the user's MacBook, and not manually accepted for physical pointer pass-through or accessibility. GitHub Pages PWA remains independently functional.
+## Install (Apple Silicon)
 
-## Build on a Mac
+1. Open the repository's **Actions** tab → **Dexter desktop macOS alpha checks** → the latest successful run on `main`, and download the `Dexter-Desktop-macOS-arm64-adhoc-DMG-main-*` artifact (kept for 90 days). GitHub delivers it as a ZIP containing the DMG and its `.sha256` file. The root `README.md` records the checksum of the current `main` build.
+2. Verify the checksum, with both files in the same folder:
+   ```sh
+   shasum -a 256 -c Dexter_Desk_Familiar_0.2.0-alpha.1_macOS_arm64_adhoc.dmg.sha256
+   ```
+3. Open the DMG and drag **Dexter Desk Familiar** onto **Applications**. Eject the disk image.
+4. Open the copied app. macOS will say it cannot verify the developer. If you trust this checked build, go to **System Settings → Privacy & Security → Open Anyway**. Do **not** disable Gatekeeper globally, and do **not** run blanket `xattr -dr` commands.
+5. If macOS says the app is **damaged**, stop. Run `codesign --verify --deep --strict -v "/Applications/Dexter Desk Familiar.app"` and report the output.
 
-Requires Node.js 22 and npm. In `desktop/`:
+## Using Dexter
+
+| To… | Do this |
+|---|---|
+| Move him | Drag his visible body. Empty space around him lets clicks through to whatever is underneath. |
+| Interact | Click to poke (repeated pokes escalate). Right-click for Treat, Huff, Nap/Wake, Talk, appearance, size, opacity and window options. |
+| Talk | Right-click → **Talk to Dexter…**, or menu-bar icon → **Talk to Dexter…**. Enter sends; Shift+Enter adds a new line; Esc stops a reply or closes the panel. Commands such as `/help`, `/treat` and `/status` work without AI. |
+| Change settings | Menu-bar icon → **Settings…**. Changes apply immediately and are saved. |
+| Recover him | Menu-bar icon → **Restore Dexter**. This shows him, turns click-through off, and moves him back onto a connected screen. Opening the app again from Applications does the same. |
+
+Defaults are conservative: no network, no speech, no check-ins, conversation not saved, does not take keyboard focus, not opened at login.
+
+### Optional features (all off until you turn them on)
+
+- **Local AI:** Settings → Local AI. Connects to an Ollama-compatible server you run, by default `http://127.0.0.1:11434`. Dexter asks for confirmation before enabling. Another computer's address needs a second explicit permission. Nothing is downloaded and no model is installed for you. If the server is down, Dexter says so and still gives his usual local replies.
+- **Speech:** Settings → Sound & speech. The *System voice* engine uses only on-device macOS voices. The *Piper* engine runs a `piper` program and `.onnx` voice that you installed yourself, given as absolute paths. Speech can be cancelled, its queue is short, and if it fails Dexter falls back to text. Dexter never uses the microphone.
+- **Check-ins:** short questions in Dexter's voice, roughly every 30 minutes to 4 hours, with quiet hours from 22:00 to 08:00. Answers are not stored. One answer asks him to check in less often.
+- **Remember conversation:** saves the conversation to `~/Library/Application Support/dexter-desk-desktop/conversation.json` (mode 0600), next to `desktop-settings.json`. Turning this off deletes the file.
+
+### Privacy
+
+No analytics, accounts, telemetry, crash uploads, keyboard or screen monitoring, clipboard access, or browser access. Dexter observes only clicks on himself, his own sleep/wake events, and display changes, which he needs for placement. Renderer pages have `connect-src 'none'` and may load only bundled `dexter://app/` files. The only network client is `core/ollama.cjs` in the main process, and it refuses to run unless Local AI is enabled. Settings → Diagnostics → **Run self-audit** checks these rules in the running app.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Dexter is gone or invisible | Menu-bar icon → **Restore Dexter**, or open the app from Applications again. Opacity cannot be set below 40%. |
+| Clicks go straight through Dexter | You enabled **Pass through all clicks**. Use Restore, or untick it in the menu-bar menu. It always turns off when Dexter restarts. |
+| Clicks on empty space near Dexter don't reach the app below | Turn on Settings → Window → **Click through empty space**. |
+| Typing went into Dexter instead of my app | Turn on Settings → Window → **Never take keyboard focus** (on by default). |
+| Dexter is off-screen after unplugging a display | Restore, or Settings → Reset & recovery → **Reset position**. Dexter also moves himself automatically when displays change. |
+| "AI offline" | Check that your server is running at the endpoint, then Settings → Local AI → **Test connection**. Dexter keeps working without it. |
+| No speech | Settings → Sound & speech → **Test voice**. The result line names the problem, for example no on-device voice, or Piper not found. Text bubbles always work. |
+| Something else | Settings → Diagnostics → **Export report…**. The report contains no conversation text, file paths, coordinates or non-local host names. |
+
+## Build from source (on a Mac)
+
+Requires Node.js 22. Run these in `desktop/`:
 
 ```sh
 npm ci --no-audit --no-fund
-npm run check
-npm start
+npm run check          # syntax, 49 unit tests, stage the payload
+npm start              # run in development
+npm run smoke          # full runtime smoke in a disposable profile
+npm run package:mac    # ad-hoc signed arm64 .app; fails unless deep strict signature verifies
+npm run package:dmg    # DMG + mounted/copied-out verification + launch + relaunch + SHA-256
 ```
 
-Build an ad-hoc-signed development bundle (not Developer ID notarized):
+The DMG builder refuses to overwrite an existing DMG or checksum. Electron 45.2.1 and @electron/packager 20.3.0 are pinned by `package-lock.json`.
 
-```sh
-npm run package:mac
-```
+**Signing invariant (regression from the 2026-11-01 broken DMG):** Electron Packager leaves an invalid linker signature on Apple Silicon. `package-macos.mjs` re-signs the whole bundle ad hoc, and `verify-macos.mjs` must pass at three handoff stages: the packaged app, the mounted DMG, and the copied-out app. It checks deep strict verification, every nested helper and framework individually, sealed resources, and the identifier. Never remove these checks.
 
-Build a drag-to-Applications **ad-hoc-signed review DMG** (run in `desktop/`):
+## History
 
-```sh
-npm run package:dmg
-```
-
-This builds the app, creates `desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg`, mounts the read-only image, verifies its app payload and `Applications` shortcut, copies the app to an isolated install-test directory, and runs the real Electron smoke before writing a matching `.dmg.sha256` file. The builder refuses to overwrite an existing DMG or checksum; archive earlier outputs before rebuilding. It **ad-hoc signs** the Electron bundle and verifies the complete sealed signature before packaging. It does not apply a Developer ID signature, notarize, or install the app.
-
-Use the app from `desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app`. Do not assume it is Gatekeeper approved. The source package locks Electron 45.2.1 and @electron/packager 20.3.0. The produced bundle has a native Dexter icon and a verified **ad-hoc** signature; Gatekeeper may still reject it because it has no Apple Developer ID and no notarization ticket.
-
-## November 1, 2026 — correction for a broken prior DMG
-
-The earlier `Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg` must not be reused. MacOS `codesign --verify --deep --strict` failed with **"code has no resources but signature indicates they must be present"** even though the DMG digest and unquarantined runtime smoke passed. The build now ad-hoc signs every nested Electron helper and the outer bundle, verifies sealed resources, and refuses to package a bad signature at source/mounted/copied-out stages. A valid signature **does not constitute Developer ID trust or notarization**; manually test the repaired build's Gatekeeper path.
-
-## Verified macOS alpha evidence (October 31, 2026)
-
-- [macOS Actions run 41218520502](https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41218520502): locked install, tests, packaged arm64 app launch smoke, bundle metadata all passed.
-- Big Mac arm64: source-stage and **packaged binary** launch passed. The runtime reported strict transparent root CSS, native bridge, pixel portrait load, real poke/treat reaction, optional cel-shaded animation decode (including the `slow_blink` VP9-alpha clip), a native window move, and a working tray object.
-- Security smoke: `dexter://app/main.cjs` returned 403; 32 bytes of WebM responded with 206 and correct range; full-window captured alpha at transparent corners.
-- Entire untouched PWA: 66/66 Node tests, 2/2 web-release tests and 36-file audited distribution build passed on Big Mac.
-- **Not proven:** actual pointer pass-through over other applications, click-drag by a human on the target MacBook, accessibility/VoiceOver, physical-device login/quit behavior, 60-minute soak, Developer ID signing, Gatekeeper and notarization. Automated synthetic pointer moves are not equivalent to human desktop testing.
-
-## Interactions
-
-Dexter is a small transparent floating window. Drag the character, not the empty area. Right-click to summon controls; the menu-bar tray icon is always a recovery point. Size, opacity, topmost preference, visual flip, art mode and window position are saved locally. The same menu includes Hide Dexter, Show Dexter, quiet mode and click-through controls. The default art remains the original 96px pixel portraits; accepted cel-shaded WebM clips are opt-in; the unapproved 32px atlas stays labeled as such. If transparency is unsupported, the still fallback is the existing local art.
-
-Hit-test passthrough forwards mouse movement to the renderer to regain interactivity when hovering the character. This requires direct target-machine validation on macOS; passing unit tests does not prove transparent-area forwarding works. **Pass through all clicks** is an explicit alternate mode; use the menu bar tray icon to turn it off. No global keyboard monitoring, screen recording or accessibility sensing.
-
-## Boundaries
-
-Core files from the current PWA are copied to an **ignored** staging folder; only the prepared desktop stage gets the desktop-only CSS/HTML adaptation. The public PWA release allowlist, service worker and hosted GitHub Pages are unchanged. No Ollama connection, real AI chat, TTS, telemetry, desktop keyboard observation, or public network listeners are added.
-
-## Download the unsigned review build
-
-Draft [PR #9](https://github.com/westkitty/Dexter_Desk_Familiar/pull/9) runs the **Dexter desktop macOS alpha checks** workflow. Once its test job passes, it uploads a short-lived GitHub Actions artifact named `Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-*` (14-day retention). A GitHub sign-in may be necessary.
-
-For a drag-and-drop installation, use the separate `Dexter-Desktop-macOS-arm64-adhoc-DMG-pr9-*` workflow artifact when its checks succeed. The Actions archive contains the **actual** `Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg` plus a matching `.dmg.sha256` checksum. Open the DMG and drag **Dexter Desk Familiar.app** to **Applications**. A ZIP-only legacy alpha artifact is also maintained separately.
-
-For exact download, checksum, Gatekeeper, physical mouse and accessibility checks, read [MACBOOK_QA.md](./MACBOOK_QA.md).
-
-The earlier Big Mac local build, SHA-256 `35815d9dc90a5b9c294c278b983902cc6c0c92655ba05c2b7b79ccaef57cd263`, predates transparent-pixel hit testing. **Do not treat that hash as the expected checksum for a newer Actions artifact.** Every review ZIP has its own matching checksum.
-
-An uploaded Actions artifact is not a published GitHub Release, a Developer ID signature, a notarized installer or a certificate that physical mouse passthrough works.
-
-## Gate before release
-
-Install exact packages, run `npm run check`, build macOS arm64 bundle, launch on macOS, verify alpha WebM transparency, draggable surface, passthrough, tray recovery, resize/opacity, shutdown and relaunch, persistent bounds, no outbound connections, reduced motion, VoiceOver and energy usage. Unsigned development artifacts are not distribution-ready.
+- **0.2.0-alpha.1 (2026-11-01, merged to `main` via PRs #10 and #9):** WestCat parity work. Added conversation, optional local AI and speech, check-ins, a settings window, diagnostics, recovery hardening, display handling and fixed position persistence. Also added the Linux runtime and egress CI, and the versioned DMG with relaunch verification. The legacy ZIP artifact has been retired in favor of the DMG.
+- **0.1.0-alpha.1 (2026-10-31):** first native overlay, alpha hit testing, tray recovery and ad-hoc signed DMG (PR #9). The earlier `…unsigned_alpha.dmg` had a broken signature and must not be reused.

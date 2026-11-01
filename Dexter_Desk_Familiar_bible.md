@@ -60,3 +60,17 @@ This additive ledger records significant implementation decisions. It does not o
 - The original PWA source tests and Pages release checks remained green: 66 unit/lifecycle tests, 2 release tests, 36 allowed public files.
 - **Not yet proven:** human mouse pass-through above other software, MacBook installation and login/quit recovery, multiple-monitor handling on actual hardware, accessibility/VoiceOver, long-session performance, app signing, notarization, and distribution to the target MacBook.
 - Keep PR #9 draft until necessary release gates are verified. Do not merge merely because packaged smoke is green or imply that unsigned local binary is a public release.
+
+## 2026-11-01 — WestCat parity for Dexter Desktop (0.2.0-alpha.1)
+
+### Decisions
+- **Stack the work on PR #9** (draft PR #10) rather than opening a competing desktop branch, so the reviewed overlay foundation and its signing repair remain the base.
+- **Adapt WestCat patterns, not architecture.** Taken: attention arbitration with reasons and a budget (Westcat_Familiar), Ollama tags/chat streaming and cancel (WestCat_Overlay_MacOS), Piper as a subprocess, polls and check-ins (Reloaded, West Cat), a self-audit over live state. Rejected: the dashboard, mock data, `sandbox:false`, PySide windows, a hardcoded Tailscale host, cheerful copy, persisted poll answers and activity logs, frame-cluster replacement of approved clips.
+- **One behavior engine.** The desktop stages the web `app.js` and adds asserted, single-occurrence hooks (wake-on-poke, desktop signals on the priority bus, attention intensity). Web source stays byte-identical.
+- **The main process owns preferences.** Every value is re-validated on load; out-of-range values fall back rather than clamp; opacity has a 40% floor; click-through is never persisted; Restore is the universal escape hatch (tray, reopen, second instance).
+- **Privacy defaults:** no network, no speech, no check-ins, no saved conversation, no login item. Local AI needs an explicit confirmation, and a non-local host needs a second one. Only on-device system voices are used. The microphone is excluded.
+- **Personality is enforced in tests:** no exclamation marks or emoji in any authored line. The system prompt forbids claiming to see the screen or the user's activity.
+
+### Evidence discipline
+- An egress claim was retracted within this session when the syscall audit showed Chromium spellchecker traffic going through a local proxy. Audits now treat proxy ports, CONNECT requests and DNS as egress. Future sessions must not equate "connects to 127.0.0.1" with "no network" when a local proxy may exist.
+- Synthetic Electron events are not physical pointer proof. Physical QA is enumerated in `desktop/MACBOOK_QA.md`, and the release decision is in `docs/DESKTOP_RELEASE_READINESS.md`.

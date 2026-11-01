@@ -1,17 +1,58 @@
 name: Dexter desktop macOS alpha checks
 on:
   pull_request:
-    paths: ['desktop/**', '.github/workflows/desktop-macos.yml']
+    paths: ['desktop/**', '.github/workflows/desktop-macos.yml', 'app.js', 'index.html', 'styles.css', 'src/**', 'assets/**']
   push:
-    branches: ['feature/desktop-overlay-v1-20261031']
+    branches: [main]
     paths: ['desktop/**', '.github/workflows/desktop-macos.yml']
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
+  desktop-linux-runtime:
+    # Real Electron runtime on Linux under Xvfb, plus a syscall-level egress audit.
+    # Not a substitute for macOS behaviour; it catches wiring and privacy regressions fast.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Static checks and unit tests
+        working-directory: desktop
+        run: npm run check
+      - name: Install trace tool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq strace xvfb
+      - name: Fetch the Electron binary outside the audited run
+        working-directory: desktop
+        run: node node_modules/electron/install.js && test -x node_modules/electron/dist/electron
+      - name: Full runtime smoke with network syscall trace and egress audit
+        working-directory: desktop
+        env:
+          DEXTER_DESKTOP_SMOKE: '1'
+        run: |
+          xvfb-run -a strace -f -qq -s 300 -e trace=connect,sendto,sendmsg,write -o /tmp/dexter-net.log \
+            ./node_modules/electron/dist/electron --no-sandbox .stage/app 2>&1 | tee /tmp/smoke.log
+          grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/smoke.log
+          # Fails on any non-loopback socket, any DNS lookup, and any proxy CONNECT.
+          node scripts/egress-audit.mjs /tmp/dexter-net.log
+      - name: Quit and relaunch persistence
+        working-directory: desktop
+        run: |
+          profile=$(mktemp -d)
+          for phase in persist-write persist-verify; do
+            DEXTER_DESKTOP_SMOKE=1 DEXTER_DESKTOP_SMOKE_PROFILE=$profile DEXTER_DESKTOP_SMOKE_PHASE=$phase \
+              xvfb-run -a ./node_modules/electron/dist/electron --no-sandbox .stage/app 2>&1 | tee /tmp/$phase.log
+            grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/$phase.log
+          done
+
   desktop:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,67 +64,51 @@ jobs:
       - name: Static and deterministic tests
         working-directory: desktop
         run: npm run check
-      - name: Build unsigned arm64 .app
+      - name: Build ad-hoc signed arm64 .app (fails unless strict deep signature verifies)
         working-directory: desktop
         run: npm run package:mac
-      - name: Run actual macOS Electron bundle smoke
+      - name: Re-verify bundle identity, metadata, icon and every nested signature
+        working-directory: desktop
+        run: |
+          app="out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
+          node scripts/verify-macos.mjs "$app"
+          cmp -s .stage/Dexter.icns "$app/Contents/Resources/electron.icns"
+          echo "Dexter app icon bytes verified"
+      - name: Full runtime smoke of the packaged macOS app, with sampled socket audit
         env:
           DEXTER_DESKTOP_SMOKE: '1'
         run: |
           app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
-          "$app/Contents/MacOS/Dexter Desk Familiar"
-      - name: Inspect bundle plist and executable
-        run: |
-          app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
-          test -d "$app"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
-          test -x "$app/Contents/MacOS/Dexter Desk Familiar"
-          test -s "$app/Contents/Resources/app.asar"
-          codesign --verify --deep --strict --verbose=2 "$app"
-          test -s "$app/Contents/Resources/electron.icns"
-          cmp -s desktop/.stage/Dexter.icns "$app/Contents/Resources/electron.icns"
-          echo "Dexter app icon bytes verified"
-          echo "Unsigned bundle layout verified. Real desktop interaction not verified."
-
-      - name: Create ZIP and SHA-256 for target-device review only
-        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
-        run: |
-          app="desktop/out/Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app"
-          zip="Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip"
-          cd desktop/out
-          ditto -c -k --sequesterRsrc --keepParent "Dexter Desk Familiar-darwin-arm64/Dexter Desk Familiar.app" "$zip"
-          test -s "$zip"
-          unzip -tqq "$zip"
-          shasum -a 256 "$zip" | tee "$zip.sha256"
-          echo "Verified unsigned alpha ZIP; not signed or notarized"
-      - name: Upload private-to-workflow unsigned review artifact
-        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: Dexter-Desktop-macOS-arm64-unsigned-alpha-pr9-${{ github.run_number }}
-          path: |
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.zip.sha256
-          retention-days: 14
-          if-no-files-found: error
-          compression-level: 0
-      - name: Build, mount, inspect and run DMG-installed app
-        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+          "$app/Contents/MacOS/Dexter Desk Familiar" > /tmp/mac-smoke.log 2>&1 &
+          smoke=$!
+          : > /tmp/mac-sockets.log
+          # Sampling (every 100 ms) can miss very short connections; Linux CI runs the exhaustive syscall audit.
+          while kill -0 $smoke 2>/dev/null; do lsof -nP -i -a -c Dexter >> /tmp/mac-sockets.log 2>/dev/null || true; sleep 0.1; done
+          wait $smoke || { cat /tmp/mac-smoke.log; exit 1; }
+          cat /tmp/mac-smoke.log
+          grep -q 'DEXTER DESKTOP SMOKE PASS' /tmp/mac-smoke.log
+          echo "Sockets observed (sampled):"; awk 'NR==1 || !/^COMMAND/' /tmp/mac-sockets.log | awk '{print $8, $9}' | sort | uniq -c || true
+          # Check BOTH endpoints of every local->remote pair; wildcard listeners are violations too.
+          if awk '!/^COMMAND/ {print $9}' /tmp/mac-sockets.log | tr -s '>' '\n' | sed 's/-$//' | grep -E ':' | grep -vE '^(127\.0\.0\.1|\[::1\]|localhost):[0-9]+$'; then
+            echo "::error::Non-loopback socket sampled from Dexter"; exit 1
+          fi
+          echo "Synthetic in-app checks only. Physical pointer click-through is NOT verified by CI."
+      - name: Build, mount, verify, copy out, launch and relaunch the DMG app
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         working-directory: desktop
         run: node scripts/package-dmg.mjs
       - name: Verify DMG SHA-256
-        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         working-directory: desktop/out
-        run: shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg.sha256
-      - name: Upload unsigned macOS DMG for hands-on review
-        if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
+        run: shasum -a 256 -c Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg.sha256
+      - name: Upload ad-hoc macOS DMG for hands-on review (not notarized)
+        if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) }}
         uses: actions/upload-artifact@v4
         with:
-          name: Dexter-Desktop-macOS-arm64-adhoc-DMG-pr9-${{ github.run_number }}
+          name: Dexter-Desktop-macOS-arm64-adhoc-DMG-${{ github.event.pull_request.number || github.ref_name }}-${{ github.run_number }}
           path: |
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg.sha256
-          retention-days: 14
+            desktop/out/Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg
+            desktop/out/Dexter_Desk_Familiar_*_macOS_arm64_adhoc.dmg.sha256
+          retention-days: ${{ github.ref == 'refs/heads/main' && 90 || 14 }}
           if-no-files-found: error
           compression-level: 0
-
