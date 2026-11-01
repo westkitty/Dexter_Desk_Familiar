@@ -39,6 +39,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"
           test -x "$app/Contents/MacOS/Dexter Desk Familiar"
           test -s "$app/Contents/Resources/app.asar"
+          codesign --verify --deep --strict --verbose=2 "$app"
           test -s "$app/Contents/Resources/electron.icns"
           cmp -s desktop/.stage/Dexter.icns "$app/Contents/Resources/electron.icns"
           echo "Dexter app icon bytes verified"
@@ -73,15 +74,15 @@ jobs:
       - name: Verify DMG SHA-256
         if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
         working-directory: desktop/out
-        run: shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg.sha256
+        run: shasum -a 256 -c Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg.sha256
       - name: Upload unsigned macOS DMG for hands-on review
         if: ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 9) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feature/desktop-overlay-v1-20261031') }}
         uses: actions/upload-artifact@v4
         with:
-          name: Dexter-Desktop-macOS-arm64-unsigned-DMG-pr9-${{ github.run_number }}
+          name: Dexter-Desktop-macOS-arm64-adhoc-DMG-pr9-${{ github.run_number }}
           path: |
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg
-            desktop/out/Dexter_Desk_Familiar_macOS_arm64_unsigned_alpha.dmg.sha256
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg
+            desktop/out/Dexter_Desk_Familiar_macOS_arm64_adhoc_alpha.dmg.sha256
           retention-days: 14
           if-no-files-found: error
           compression-level: 0
