@@ -86,3 +86,9 @@ This additive ledger records significant implementation decisions. It does not o
   - notes cross into model requests only through the counted firewall;
   - all new windows are sandboxed and destroyed on close.
 - **Lesson:** a smoke step returning a function from `executeJavaScript` fails with "could not be cloned". Scripts that only cause side effects must end with a plain value.
+
+## 2026-11-01 — Live GitHub Pages v0.4.0-preview.1 verified
+
+- **Pages Deployment:** Workflow run `41364221989` triggered from `main` commit `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76` succeeded in 28s.
+- **Payload Verification:** All 36 allowlisted public assets (1,992,102 bytes total) and sourceCommit SHA matched `release-manifest.json` under independent probe by `scripts/verify-pages.mjs`. Hosted exclusions confirmed 404 for non-release documentation.
+

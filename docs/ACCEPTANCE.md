@@ -52,3 +52,12 @@ These newer checks add evidence to the historical baseline above; they do not au
 - [ ] Full two-version offline worker upgrade, interrupted update and rollback replay.
 - [ ] User-approved final visual canon / independent 32px atlas for default mode.
 - [ ] 60-minute performance and v1.0 release gate.
+
+## 2026-11-01 — v0.4.0-preview.1 GitHub Pages deployment closure
+
+- [x] Web test suite 69/69 PASS, release tests 2/2 PASS; Desktop test suite 90/90 PASS at `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76`.
+- [x] Cloud browser smoke 22/22 (Chromium/WebKit) PASS in GitHub Actions run 41364221950.
+- [x] GitHub Pages deployment verified against `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76`: all 36 public application file hashes/bytes and development-file exclusions matched the release manifest in run 41364221989.
+- [ ] Native Safari/macOS and physical Android/touch/screen-reader acceptance.
+- [ ] User-approved final visual canon for default pixel portrait mode.
+

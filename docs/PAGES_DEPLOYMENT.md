@@ -31,3 +31,10 @@ Deploy run: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186
 `scripts/build-release.mjs` records `GITHUB_SHA` in the public release manifest during Actions builds. After deploying, `scripts/verify-pages.mjs` refuses wrong Pages origin, waits for the expected manifest revision, fetches and hashes every allowlisted public asset, matches byte totals, and checks that README and Operational State are absent from the Pages host. The deployment job cannot pass this step if those checks fail. This does **not** make the public GitHub repository itself private.
 
 The source-commit identity is exact for the published code release; subsequent documentation-only commits may advance `main` without changing the deployed application payload. Preserve this distinction in audits.
+
+## 2026-11-01 — verified public v0.4.0-preview.1
+
+Deploy run: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41364221989, **SUCCESS**. Runtime source commit: `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76`, PWA version `0.4.0-preview.1`, 36 allowlisted public assets, 1,992,102 total bytes.
+
+Post-deployment verification (`scripts/verify-pages.mjs`) independently checked against live `https://westkitty.github.io/Dexter_Desk_Familiar/`: all 36 public application file hashes/bytes and development-file exclusions matched the release manifest.
+

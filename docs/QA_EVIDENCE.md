@@ -81,3 +81,16 @@ Before marking verified: exact-head Node CI, complete-cache atomic install and r
 - **Real browser:** 22/22 Chromium/WebKit PASS on branch https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186244571 and on merge SHA https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186422191. New patrol visibly traversed and was interrupted by a direct Treat action, while existing privacy, mobile bounds, offline and sprite fallbacks stayed green.
 - **Deployment:** Pages workflow https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41186422183 succeeded. Exact public release SHA `b0242e3c060a068032f62ca6263f5209c79ad187`, 23 individual file digests, byte counts and 404 exclusion checks were executed and passed. Big Mac independently fetched manifest showing this SHA, 23 files, version 0.3.1.
 - **Not proved:** 60-minute performance measurement, native Safari/device assistive testing, full two-version SW rollback on physical devices, image/canon approval or v1.0 completeness.
+
+## 2026-11-01 — verified public v0.4.0-preview.1
+
+- **Source Commit:** `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76` on `main`.
+- **CI Workflows:**
+  - Verify Dexter Desk Familiar: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41364222009 (PASS)
+  - Browser smoke (Chromium/WebKit): https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41364221950 (PASS)
+  - Deploy Dexter to GitHub Pages: https://github.com/westkitty/Dexter_Desk_Familiar/actions/runs/41364221989 (SUCCESS)
+- **Live Pages Verification:**
+  - Executed `GITHUB_SHA=1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76 node scripts/verify-pages.mjs`.
+  - Exactly 36 public files (1,992,102 bytes) verified byte-for-byte with SHA-256 digests against `dist/release-manifest.json`.
+  - Excluded development files (`README.md`, `OPERATIONAL_STATE.md`) return HTTP 404 from hosted origin `https://westkitty.github.io/Dexter_Desk_Familiar/`.
+

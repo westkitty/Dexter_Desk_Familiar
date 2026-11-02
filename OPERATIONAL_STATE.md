@@ -330,3 +330,23 @@ Do not add global monitoring, network-based intelligence, host polling, extensio
   - `npm run check` passes 100% in root and desktop.
   - Re-packaged and verified ad-hoc signed app: `/Applications/Dexter Desk Familiar.app`. Strict codesign verification PASS.
 
+## 2026-11-01 — GitHub Pages live deployment verification (v0.4.0-preview.1)
+
+- **Authority:** User request: "stage commit push pages".
+- **Deployment Status:** GitHub Pages deployment workflow run `41364221989` triggered from `main` push (`1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76`) completed with **SUCCESS** (elapsed 28s).
+- **Verification Evidence:**
+  - Ran `scripts/verify-pages.mjs` against live site `https://westkitty.github.io/Dexter_Desk_Familiar/`.
+  - All 36 public files verified byte-for-byte with SHA-256 hashes against `dist/release-manifest.json`.
+  - Total verified bytes: 1,992,102 bytes.
+  - Published source commit matches exact Git HEAD: `1b3acbc2a8268ad3128fbfbe8cd115f1bca44e76`.
+  - Excluded development files (`README.md`, `OPERATIONAL_STATE.md`) return HTTP 404 from the hosted website.
+- **CI / Cloud Verification:**
+  - `Verify Dexter Desk Familiar` (run 41364222009): PASS.
+  - `Browser smoke — Dexter` (run 41364221950): PASS.
+  - `Deploy Dexter to GitHub Pages` (run 41364221989): PASS.
+- **Remaining Open Gates:**
+  - Physical multi-display/trackpad testing on MacBook hardware.
+  - Live Piper speech binary on physical machine.
+  - macOS arm64 GitHub Actions runner ad-hoc packaging environment fix (local packaging and strict codesign pass on Big Mac / MacBook Air).
+
+
